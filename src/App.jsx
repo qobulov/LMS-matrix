@@ -3,6 +3,7 @@ import { RequireAuth } from "./components/auth/RequireAuth";
 import { RequireRole } from "./components/auth/RequireRole";
 import { AdminLayout } from "./components/layout/AdminLayout";
 import { AppLayout } from "./components/layout/AppLayout";
+import { LessonLayout } from "./components/layout/LessonLayout";
 import { useLms } from "./data/LmsContext";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { CatalogPage } from "./pages/CatalogPage";
@@ -20,6 +21,7 @@ import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { AdminReportsPage } from "./pages/admin/AdminReportsPage";
 import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
+import { RewardsPage } from "./pages/RewardsPage";
 
 function App() {
   const { isAuthenticated } = useLms();
@@ -35,6 +37,9 @@ function App() {
         element={isAuthenticated ? <Navigate to="/" replace /> : <RegisterPage />}
       />
 
+      {/* Course detail page accessible without auth for preview */}
+      <Route path="/courses/:courseId" element={<CourseDetailPage />} />
+
       <Route
         element={
           <RequireAuth>
@@ -44,10 +49,9 @@ function App() {
       >
         <Route path="/" element={<HomePage />} />
         <Route path="/catalog" element={<CatalogPage />} />
-        <Route path="/courses/:courseId" element={<CourseDetailPage />} />
-        <Route path="/learn/:courseId/:lessonId" element={<LessonViewerPage />} />
         <Route path="/quiz/:courseId" element={<QuizPage />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/rewards" element={<RewardsPage />} />
 
         <Route
           path="/student"
@@ -95,6 +99,17 @@ function App() {
           <Route path="reports" element={<AdminReportsPage />} />
           <Route path="users" element={<AdminUsersPage />} />
         </Route>
+      </Route>
+
+      {/* Lesson viewer uses its own full-screen layout (no app sidebar) */}
+      <Route
+        element={
+          <RequireAuth>
+            <LessonLayout />
+          </RequireAuth>
+        }
+      >
+        <Route path="/learn/:courseId/:lessonId" element={<LessonViewerPage />} />
       </Route>
 
       <Route

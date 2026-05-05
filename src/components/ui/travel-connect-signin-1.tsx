@@ -1,507 +1,301 @@
 'use client';
 
-import React, { useRef, useEffect, useState } from 'react';
-import { Eye, EyeOff, ArrowRight } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { Eye, EyeOff, ChevronLeft, ChevronRight } from 'lucide-react';
+import authImage1 from '../../assets/images/auth_image1.png';
+import authImage2 from '../../assets/images/auth_image2.png';
+import authImage3 from '../../assets/images/auth_image3.png';
 
-const cn = (...classes: string[]) => {
-  return classes.filter(Boolean).join(' ');
-};
+const SLIDES = [
+  {
+    image: authImage1,
+    heading: 'Access hundreds of high-quality courses designed to help you upskill anytime, anywhere.',
+    title: 'Learn with Expert Video Courses',
+    sub: 'in Damiun Indonesia',
+  },
+  {
+    image: authImage2,
+    heading: 'Connect with expert mentors through live 1-on-1 sessions from anywhere in the world.',
+    title: 'Mentoring & Live Sessions',
+    sub: 'in Damiun Indonesia',
+  },
+  {
+    image: authImage3,
+    heading: 'Collaborate on real projects and build your portfolio with hands-on learning.',
+    title: 'Hands-on Collaborative Learning',
+    sub: 'in Damiun Indonesia',
+  },
+];
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  children: React.ReactNode;
-  variant?: 'default' | 'outline';
-  className?: string;
+interface LoginFields {
+  email: string;
+  password: string;
 }
 
-const Button = ({ children, variant = 'default', className = '', ...props }: ButtonProps) => {
-  const baseStyles =
-    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50';
-
-  const variantStyles = {
-    default:
-      'bg-primary bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700',
-    outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
-  };
-
-  return (
-    <button className={`${baseStyles} ${variantStyles[variant]} ${className}`} {...props}>
-      {children}
-    </button>
-  );
-};
-
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  className?: string;
+interface RegisterFields extends LoginFields {
+  fullName: string;
 }
-
-const Input = ({ className = '', ...props }: InputProps) => {
-  return (
-    <input
-      className={`flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm text-gray-800 ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
-      {...props}
-    />
-  );
-};
-
-type RoutePoint = {
-  x: number;
-  y: number;
-  delay: number;
-};
 
 interface TravelConnectSignInProps {
   mode?: 'login' | 'register';
-  loading?: boolean;
-  error?: string;
-  defaultEmail?: string;
-  onSubmit: (payload: {
-    fullName?: string;
-    email: string;
-    password: string;
-    remember: boolean;
-    role?: 'student' | 'instructor';
-  }) => void;
+  onSubmit: (values: LoginFields | RegisterFields) => Promise<void> | void;
   onSwitchMode?: () => void;
 }
 
-const DotMap = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+const inputClass =
+  'h-14 w-full rounded-full border-0 bg-white/65 px-6 text-xl text-[#3f4960] placeholder:text-[#6a758f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#149ad9] sm:h-16 sm:px-7 sm:text-2xl lg:text-[2rem]';
 
-  const routes: { start: RoutePoint; end: RoutePoint; color: string }[] = [
-    {
-      start: { x: 100, y: 150, delay: 0 },
-      end: { x: 200, y: 80, delay: 2 },
-      color: '#2563eb',
-    },
-    {
-      start: { x: 200, y: 80, delay: 2 },
-      end: { x: 260, y: 120, delay: 4 },
-      color: '#2563eb',
-    },
-    {
-      start: { x: 50, y: 50, delay: 1 },
-      end: { x: 150, y: 180, delay: 3 },
-      color: '#2563eb',
-    },
-    {
-      start: { x: 280, y: 60, delay: 0.5 },
-      end: { x: 180, y: 180, delay: 2.5 },
-      color: '#2563eb',
-    },
-  ];
-
-  const generateDots = (width: number, height: number) => {
-    const dots = [];
-    const gap = 12;
-    const dotRadius = 1;
-
-    for (let x = 0; x < width; x += gap) {
-      for (let y = 0; y < height; y += gap) {
-        const isInMapShape =
-          ((x < width * 0.25 && x > width * 0.05) && (y < height * 0.4 && y > height * 0.1)) ||
-          ((x < width * 0.25 && x > width * 0.15) && (y < height * 0.8 && y > height * 0.4)) ||
-          ((x < width * 0.45 && x > width * 0.3) && (y < height * 0.35 && y > height * 0.15)) ||
-          ((x < width * 0.5 && x > width * 0.35) && (y < height * 0.65 && y > height * 0.35)) ||
-          ((x < width * 0.7 && x > width * 0.45) && (y < height * 0.5 && y > height * 0.1)) ||
-          ((x < width * 0.8 && x > width * 0.65) && (y < height * 0.8 && y > height * 0.6));
-
-        if (isInMapShape && Math.random() > 0.3) {
-          dots.push({
-            x,
-            y,
-            radius: dotRadius,
-            opacity: Math.random() * 0.5 + 0.2,
-          });
-        }
-      }
-    }
-    return dots;
-  };
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const resizeObserver = new ResizeObserver((entries) => {
-      const { width, height } = entries[0].contentRect;
-      setDimensions({ width, height });
-      canvas.width = width;
-      canvas.height = height;
-    });
-
-    resizeObserver.observe(canvas.parentElement as Element);
-    return () => resizeObserver.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!dimensions.width || !dimensions.height) return;
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const dots = generateDots(dimensions.width, dimensions.height);
-    let animationFrameId: number;
-    let startTime = Date.now();
-
-    function drawDots() {
-      ctx.clearRect(0, 0, dimensions.width, dimensions.height);
-      dots.forEach((dot) => {
-        ctx.beginPath();
-        ctx.arc(dot.x, dot.y, dot.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(37, 99, 235, ${dot.opacity})`;
-        ctx.fill();
-      });
-    }
-
-    function drawRoutes() {
-      const currentTime = (Date.now() - startTime) / 1000;
-
-      routes.forEach((route) => {
-        const elapsed = currentTime - route.start.delay;
-        if (elapsed <= 0) return;
-
-        const duration = 3;
-        const progress = Math.min(elapsed / duration, 1);
-
-        const x = route.start.x + (route.end.x - route.start.x) * progress;
-        const y = route.start.y + (route.end.y - route.start.y) * progress;
-
-        ctx.beginPath();
-        ctx.moveTo(route.start.x, route.start.y);
-        ctx.lineTo(x, y);
-        ctx.strokeStyle = route.color;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.arc(route.start.x, route.start.y, 3, 0, Math.PI * 2);
-        ctx.fillStyle = route.color;
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.arc(x, y, 3, 0, Math.PI * 2);
-        ctx.fillStyle = '#3b82f6';
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.arc(x, y, 6, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(59, 130, 246, 0.4)';
-        ctx.fill();
-
-        if (progress === 1) {
-          ctx.beginPath();
-          ctx.arc(route.end.x, route.end.y, 3, 0, Math.PI * 2);
-          ctx.fillStyle = route.color;
-          ctx.fill();
-        }
-      });
-    }
-
-    function animate() {
-      drawDots();
-      drawRoutes();
-
-      const currentTime = (Date.now() - startTime) / 1000;
-      if (currentTime > 15) {
-        startTime = Date.now();
-      }
-
-      animationFrameId = requestAnimationFrame(animate);
-    }
-
-    animate();
-
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [dimensions]);
-
-  return (
-    <div className="relative w-full h-full overflow-hidden">
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
-    </div>
-  );
-};
+const labelClass =
+  'text-[1.7rem] font-semibold leading-tight text-[#161f31] sm:text-[2rem]';
 
 const TravelConnectSignIn = ({
   mode = 'login',
   onSubmit,
-  loading = false,
-  error = '',
-  defaultEmail = '',
   onSwitchMode,
 }: TravelConnectSignInProps) => {
   const isRegister = mode === 'register';
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [email, setEmail] = useState(defaultEmail);
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<'student' | 'instructor'>('student');
-  const [remember, setRemember] = useState(true);
-  const [isHovered, setIsHovered] = useState(false);
+  const [current, setCurrent] = useState(0);
+  const [animating, setAnimating] = useState(false);
+
+  const goTo = (index: number) => {
+    if (animating) return;
+    setAnimating(true);
+    setTimeout(() => {
+      setCurrent(index);
+      setAnimating(false);
+    }, 300);
+  };
+
+  const prev = () => goTo((current - 1 + SLIDES.length) % SLIDES.length);
+  const next = () => goTo((current + 1) % SLIDES.length);
+
+  useEffect(() => {
+    const id = setInterval(next, 4500);
+    return () => clearInterval(id);
+  }, [current]);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<RegisterFields>({ mode: 'onTouched' });
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="flex w-full h-full items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-          className="w-full max-w-4xl overflow-hidden rounded-2xl flex bg-white shadow-xl"
-        >
-          <div className="hidden md:block w-1/2 h-[600px] relative overflow-hidden border-r border-gray-100">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-100">
-              <DotMap />
+    <div className="min-h-screen w-full bg-[#d7dbe1]">
+      <div className="grid max-h-screen w-full grid-cols-1 lg:grid-cols-2">
+        <section className="relative flex min-h-screen w-full items-center justify-center px-5 py-8 sm:px-8 sm:py-10 lg:px-10 xl:px-16">
+          <div className="flex w-full max-w-[720px] flex-col gap-8 sm:gap-10 lg:min-h-[78vh] lg:justify-between">
+            <div className="space-y-7 sm:space-y-8 lg:space-y-9">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#149ad9] text-white sm:h-12 sm:w-12">
+                  <div className="h-6 w-4 rounded-sm bg-white/90 sm:h-7" />
+                </div>
+                <div className="leading-none text-[#149ad9]">
+                  <p className="text-xl font-semibold tracking-[0.08em] sm:text-2xl">Damiun</p>
+                  <p className="mt-1 text-xl font-semibold tracking-[0.08em] sm:text-2xl">Indonesia</p>
+                </div>
+              </div>
 
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-8 z-10">
-                <motion.div
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.6, duration: 0.5 }}
-                  className="mb-6"
-                >
-                  <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-200">
-                    <ArrowRight className="text-white h-6 w-6" />
+              <div className="w-full space-y-6">
+                <div className="space-y-2.5">
+                  <h1 className="text-4xl font-semibold leading-tight text-[#161f31] sm:text-5xl lg:text-[3.1rem]">
+                    {isRegister ? 'Create Account' : 'Sign In'}
+                  </h1>
+                  <p className="text-base leading-snug text-[#303948] sm:text-lg lg:text-xl">
+                    {isRegister
+                      ? 'Create your account to start learning and growing.'
+                      : 'Sign In to your account to start learning and growing.'}
+                  </p>
+                </div>
+
+                <form className="space-y-5 sm:space-y-6" noValidate onSubmit={handleSubmit(onSubmit)}>
+                  {isRegister && (
+                    <div className="space-y-2.5">
+                      <label htmlFor="fullName" className={labelClass}>
+                        Full Name
+                      </label>
+                      <input
+                        id="fullName"
+                        placeholder="Write your full name"
+                        className={inputClass}
+                        {...register('fullName', {
+                          required: 'Full name is required',
+                          minLength: { value: 2, message: 'Name must be at least 2 characters' },
+                        })}
+                      />
+                      {errors.fullName && (
+                        <p className="pl-4 text-sm font-medium text-red-600">{errors.fullName.message}</p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="space-y-2.5">
+                    <label htmlFor="email" className={labelClass}>
+                      Email Address
+                    </label>
+                    <input
+                      id="email"
+                      type="email"
+                      placeholder="Write your email"
+                      className={inputClass}
+                      {...register('email', {
+                        required: 'Email is required',
+                        pattern: {
+                          value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                          message: 'Enter a valid email address',
+                        },
+                      })}
+                    />
+                    {errors.email && (
+                      <p className="pl-4 text-sm font-medium text-red-600">{errors.email.message}</p>
+                    )}
                   </div>
-                </motion.div>
-                <motion.h2
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.7, duration: 0.5 }}
-                  className="text-3xl font-bold mb-2 text-center text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600"
+
+                  <div className="space-y-2.5">
+                    <label htmlFor="password" className={labelClass}>
+                      Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="password"
+                        type={isPasswordVisible ? 'text' : 'password'}
+                        placeholder={isRegister ? 'Create your password' : 'Input your password'}
+                        className={`${inputClass} pr-14 sm:pr-16 lg:pr-20`}
+                        {...register('password', {
+                          required: 'Password is required',
+                          minLength: { value: 8, message: 'Password must be at least 8 characters' },
+                          ...(isRegister && {
+                            pattern: {
+                              value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+                              message: 'Must include uppercase, lowercase, and a number',
+                            },
+                          }),
+                        })}
+                      />
+                      <button
+                        type="button"
+                        aria-label="Toggle password visibility"
+                        className="absolute right-5 top-1/2 -translate-y-1/2 text-[#6c7388] transition hover:text-[#4e576f] sm:right-7"
+                        onClick={() => setIsPasswordVisible((prev) => !prev)}
+                      >
+                        {isPasswordVisible ? <EyeOff size={24} /> : <Eye size={24} />}
+                      </button>
+                    </div>
+                    {errors.password && (
+                      <p className="pl-4 text-sm font-medium text-red-600">{errors.password.message}</p>
+                    )}
+                  </div>
+
+                  {!isRegister && (
+                    <div className="text-right text-base text-[#5f6880] sm:text-lg lg:text-2xl">
+                      <button type="button" className="transition hover:text-[#149ad9]">
+                        Forgot my password
+                      </button>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="h-14 w-full rounded-full bg-[#149ad9] text-2xl font-semibold text-white transition hover:bg-[#0f8dc8] disabled:opacity-70 sm:h-16 sm:text-3xl lg:text-[2.2rem]"
+                  >
+                    {isSubmitting
+                      ? isRegister ? 'Creating...' : 'Signing in...'
+                      : isRegister ? 'Create Account' : 'Sign In'}
+                  </button>
+
+                  <div className="text-center text-base text-[#5f6880] sm:text-lg lg:text-2xl">
+                    {isRegister ? 'Already have an account? ' : "Don't have an account? "}
+                    <button
+                      type="button"
+                      className="font-semibold text-[#149ad9] transition hover:text-[#0e85bc]"
+                      onClick={onSwitchMode}
+                    >
+                      {isRegister ? 'Sign In' : 'Sign Up'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm text-[#65718c] sm:gap-x-12 sm:text-base">
+              <a href="#">About</a>
+              <a href="#">Terms &amp; Conditions</a>
+              <a href="#">Privacy Policy</a>
+            </div>
+          </div>
+        </section>
+
+        <section className="relative hidden overflow-hidden lg:block">
+          {/* Slide images */}
+          {SLIDES.map((slide, i) => (
+            <img
+              key={i}
+              src={slide.image}
+              alt={slide.title}
+              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
+                i === current && !animating ? 'opacity-100' : 'opacity-0'
+              }`}
+            />
+          ))}
+
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#07122e]/85" />
+
+          <div className="absolute bottom-12 left-8 right-8 text-white xl:bottom-14 xl:left-12 xl:right-12">
+            {/* Slide text */}
+            <p
+              key={current}
+              className="max-w-[840px] animate-fade-in text-4xl font-medium leading-[1.16] xl:text-6xl"
+            >
+              {SLIDES[current].heading}
+            </p>
+            <div className="mt-7 xl:mt-10">
+              <p className="text-2xl font-semibold xl:text-4xl">{SLIDES[current].title}</p>
+              <p className="mt-2 text-xl text-white/90 xl:mt-3 xl:text-4xl">{SLIDES[current].sub}</p>
+            </div>
+
+            <div className="mt-7 flex items-center justify-between xl:mt-10">
+              {/* Dot indicators */}
+              <div className="flex items-center gap-2">
+                {SLIDES.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    aria-label={`Go to slide ${i + 1}`}
+                    onClick={() => goTo(i)}
+                    className={`rounded-full transition-all duration-300 ${
+                      i === current
+                        ? 'h-2.5 w-8 bg-white'
+                        : 'h-2.5 w-2.5 bg-white/40 hover:bg-white/70'
+                    }`}
+                  />
+                ))}
+              </div>
+
+              {/* Prev / Next */}
+              <div className="flex items-center gap-3 xl:gap-4">
+                <button
+                  type="button"
+                  aria-label="Previous"
+                  onClick={prev}
+                  className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/90 text-white transition hover:bg-white/20 xl:h-14 xl:w-14"
                 >
-                  LMS Matrix
-                </motion.h2>
-                <motion.p
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.8, duration: 0.5 }}
-                  className="text-sm text-center text-gray-600 max-w-xs"
+                  <ChevronLeft size={22} />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Next"
+                  onClick={next}
+                  className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/90 text-white transition hover:bg-white/20 xl:h-14 xl:w-14"
                 >
-                  {isRegister
-                    ? 'Create your account and start learning with role-based LMS experience'
-                    : 'Sign in to continue your LMS journey with clean student and instructor workflows'}
-                </motion.p>
+                  <ChevronRight size={22} />
+                </button>
               </div>
             </div>
           </div>
-
-          <div className="w-full md:w-1/2 p-8 md:p-10 flex flex-col justify-center bg-white">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <h1 className="text-2xl md:text-3xl font-bold mb-1 text-gray-800">
-                {isRegister ? 'Create account' : 'Welcome back'}
-              </h1>
-              <p className="text-gray-500 mb-8">
-                {isRegister ? 'Sign up for a new account' : 'Sign in to your account'}
-              </p>
-
-              <div className="mb-6">
-                <button
-                  className="w-full flex items-center justify-center gap-2 bg-gray-50 border border-gray-200 rounded-lg p-3 hover:bg-gray-100 transition-all duration-300 text-gray-700 shadow-sm"
-                  onClick={() => console.log('Google auth')}
-                  type="button"
-                >
-                  <svg className="h-5 w-5" viewBox="0 0 24 24">
-                    <path
-                      fill="currentColor"
-                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                      fillOpacity=".54"
-                    />
-                    <path
-                      fill="#4285F4"
-                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                    />
-                    <path fill="#EA4335" d="M1 1h22v22H1z" fillOpacity="0" />
-                  </svg>
-                  <span>{isRegister ? 'Register with Google' : 'Login with Google'}</span>
-                </button>
-              </div>
-
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-200"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">or</span>
-                </div>
-              </div>
-
-              <form
-                className="space-y-5"
-                noValidate
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  onSubmit({
-                    fullName,
-                    email,
-                    password,
-                    remember,
-                    role,
-                  });
-                }}
-              >
-                {isRegister ? (
-                  <div>
-                    <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
-                      Full Name <span className="text-blue-500">*</span>
-                    </label>
-                    <Input
-                      id="fullName"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Enter your full name"
-                      className="bg-gray-50 border-gray-200 placeholder:text-gray-400 text-gray-800 w-full focus:border-blue-500 focus:ring-blue-500"
-                    />
-                  </div>
-                ) : null}
-
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                    Email <span className="text-blue-500">*</span>
-                  </label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email address"
-                    className="bg-gray-50 border-gray-200 placeholder:text-gray-400 text-gray-800 w-full focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                    Password <span className="text-blue-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={isPasswordVisible ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder={isRegister ? 'Create your password' : 'Enter your password'}
-                      className="bg-gray-50 border-gray-200 placeholder:text-gray-400 text-gray-800 w-full pr-10 focus:border-blue-500 focus:ring-blue-500"
-                    />
-                    <button
-                      type="button"
-                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
-                      onClick={() => setIsPasswordVisible(!isPasswordVisible)}
-                    >
-                      {isPasswordVisible ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                </div>
-
-                {isRegister ? (
-                  <div>
-                    <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
-                      Role
-                    </label>
-                    <select
-                      id="role"
-                      value={role}
-                      onChange={(e) => setRole(e.target.value as 'student' | 'instructor')}
-                      className="flex h-10 w-full rounded-md border bg-gray-50 px-3 py-2 text-sm text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                    >
-                      <option value="student">Student</option>
-                      <option value="instructor">Instructor</option>
-                    </select>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between text-sm text-gray-600">
-                    <label className="inline-flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4"
-                        checked={remember}
-                        onChange={(e) => setRemember(e.target.checked)}
-                      />
-                      Remember me
-                    </label>
-                    <button
-                      type="button"
-                      className="text-blue-600 hover:text-blue-700"
-                      onClick={() => console.log('Forgot password')}
-                    >
-                      Forgot password?
-                    </button>
-                  </div>
-                )}
-
-                <AnimatePresence>
-                  {error ? (
-                    <motion.p
-                      initial={{ opacity: 0, y: -6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -6 }}
-                      className="text-sm text-red-500"
-                    >
-                      {error}
-                    </motion.p>
-                  ) : null}
-                </AnimatePresence>
-
-                <motion.div
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.98 }}
-                  onHoverStart={() => setIsHovered(true)}
-                  onHoverEnd={() => setIsHovered(false)}
-                  className="pt-2"
-                >
-                  <Button
-                    type="submit"
-                    className={cn(
-                      'w-full bg-gradient-to-r relative overflow-hidden from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white py-2 rounded-lg transition-all duration-300',
-                      isHovered ? 'shadow-lg shadow-blue-200' : '',
-                    )}
-                    disabled={loading}
-                  >
-                    <span className="flex items-center justify-center">
-                      {loading ? (isRegister ? 'Creating...' : 'Signing in...') : isRegister ? 'Create account' : 'Sign in'}
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </span>
-                    {isHovered && !loading ? (
-                      <motion.span
-                        initial={{ left: '-100%' }}
-                        animate={{ left: '100%' }}
-                        transition={{ duration: 1, ease: 'easeInOut' }}
-                        className="absolute top-0 bottom-0 left-0 w-20 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-                        style={{ filter: 'blur(8px)' }}
-                      />
-                    ) : null}
-                  </Button>
-                </motion.div>
-
-                <div className="text-center mt-6">
-                  <button
-                    type="button"
-                    className="text-blue-600 hover:text-blue-700 text-sm transition-colors"
-                    onClick={onSwitchMode}
-                  >
-                    {isRegister
-                      ? 'Already have an account? Login here'
-                      : "Don't have an account? Sign up here"}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        </motion.div>
+        </section>
       </div>
     </div>
   );

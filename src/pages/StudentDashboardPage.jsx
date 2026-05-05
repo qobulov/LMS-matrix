@@ -44,7 +44,7 @@ export function StudentDashboardPage() {
 
             <div className="row-gap">
               {nextLesson ? (
-                <Link className="btn btn-secondary" to={`/learn/${course.id}/${nextLesson.id}`}>
+                <Link className="btn btn-secondary" to="/">
                   Continue: {nextLesson.title}
                 </Link>
               ) : (

@@ -1,216 +1,121 @@
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "../components/ui/button-1";
-import { CourseCard } from "../components/ui/CourseCard";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-} from "../components/ui/pagination";
+import { Link } from "react-router-dom";
 import { useLms } from "../data/LmsContext";
 
-const pageSize = 6;
+const PAGE_SIZE = 8;
+
+function totalLessons(course) {
+  return course.modules.reduce((sum, m) => sum + m.lessons.length, 0);
+}
+
+function CourseCard({ course }) {
+  const count = totalLessons(course);
+  return (
+    <Link
+      to={`/courses/${course.id}`}
+      className="group flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm transition hover:shadow-md"
+    >
+      <div className="aspect-[4/3] w-full overflow-hidden">
+        <img
+          src={course.coverImage}
+          alt={course.title}
+          className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+        />
+      </div>
+      <div className="flex flex-col gap-1.5 p-4">
+        <p className="line-clamp-2 text-sm font-bold leading-snug text-gray-900">{course.title}</p>
+        <p className="text-xs text-gray-400">{count > 0 ? `${count} videos` : `${course.durationHours}h total`}</p>
+      </div>
+    </Link>
+  );
+}
 
 export function CatalogPage() {
-  const { courses, categories, enrollmentByCourseId } = useLms();
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("all");
-  const [difficulty, setDifficulty] = useState("all");
-  const [priceType, setPriceType] = useState("all");
-  const [language, setLanguage] = useState("all");
-  const [sortBy, setSortBy] = useState("popularity");
+  const { courses, myEnrollments } = useLms();
+  const [tab, setTab] = useState("all");
   const [page, setPage] = useState(1);
 
-  const languages = useMemo(
-    () => ["all", ...new Set(courses.map((item) => item.language))],
-    [courses],
+  const enrolledCourseIds = useMemo(
+    () => new Set(myEnrollments.map((e) => e.courseId)),
+    [myEnrollments],
   );
 
-  const filtered = useMemo(() => {
-    const list = courses
-      .filter((course) =>
-        course.title.toLowerCase().includes(search.trim().toLowerCase()),
-      )
-      .filter((course) => (category === "all" ? true : course.category === category))
-      .filter((course) =>
-        difficulty === "all" ? true : course.difficulty === difficulty,
-      )
-      .filter((course) => {
-        if (priceType === "free") return course.price === 0;
-        if (priceType === "paid") return course.price > 0;
-        return true;
-      })
-      .filter((course) => (language === "all" ? true : course.language === language))
-      .sort((a, b) => {
-        if (sortBy === "rating") return b.rating - a.rating;
-        if (sortBy === "priceAsc") return a.price - b.price;
-        if (sortBy === "priceDesc") return b.price - a.price;
-        return b.studentCount - a.studentCount;
-      });
-
-    return list;
-  }, [courses, search, category, difficulty, priceType, language, sortBy]);
-
-  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const normalizedPage = Math.min(page, pageCount);
-  const pagedCourses = filtered.slice(
-    (normalizedPage - 1) * pageSize,
-    normalizedPage * pageSize,
+  const myCourses = useMemo(
+    () => courses.filter((c) => enrolledCourseIds.has(c.id)),
+    [courses, enrolledCourseIds],
   );
 
-  const pageItems = useMemo(() => {
-    if (pageCount <= 7) {
-      return Array.from({ length: pageCount }, (_, index) => index + 1);
-    }
+  const activeCourses = tab === "all" ? courses : myCourses;
 
-    if (normalizedPage <= 3) {
-      return [1, 2, 3, 4, "ellipsis", pageCount];
-    }
+  const pageCount = Math.max(1, Math.ceil(activeCourses.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const paged = activeCourses.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-    if (normalizedPage >= pageCount - 2) {
-      return [1, "ellipsis", pageCount - 3, pageCount - 2, pageCount - 1, pageCount];
-    }
-
-    return [
-      1,
-      "ellipsis",
-      normalizedPage - 1,
-      normalizedPage,
-      normalizedPage + 1,
-      "ellipsis",
-      pageCount,
-    ];
-  }, [normalizedPage, pageCount]);
+  const handleTab = (next) => {
+    setTab(next);
+    setPage(1);
+  };
 
   return (
-    <section>
-      <h2>Course Catalog</h2>
-      <div className="filters filters-wide">
-        <input
-          placeholder="Search by title"
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
-            setPage(1);
-          }}
-        />
-
-        <select
-          value={category}
-          onChange={(event) => {
-            setCategory(event.target.value);
-            setPage(1);
-          }}
+    <div className="flex flex-col gap-6">
+      {/* Tabs */}
+      <div className="flex gap-3">
+        <button
+          onClick={() => handleTab("all")}
+          className={`rounded-full px-6 py-2 text-sm font-semibold transition ${
+            tab === "all"
+              ? "bg-[#149ad9] text-white shadow-sm"
+              : "bg-white text-gray-500 shadow-sm hover:text-gray-800"
+          }`}
         >
-          <option value="all">All Categories</option>
-          {categories.map((item) => (
-            <option key={item} value={item}>
-              {item}
-            </option>
+          All Course
+        </button>
+        <button
+          onClick={() => handleTab("my")}
+          className={`rounded-full px-6 py-2 text-sm font-semibold transition ${
+            tab === "my"
+              ? "bg-[#149ad9] text-white shadow-sm"
+              : "bg-white text-gray-500 shadow-sm hover:text-gray-800"
+          }`}
+        >
+          My Course
+        </button>
+      </div>
+
+      {/* Grid */}
+      {paged.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl bg-white py-20 text-center">
+          <p className="text-base font-semibold text-gray-500">No courses found</p>
+          {tab === "my" && (
+            <p className="mt-1 text-sm text-gray-400">Enroll in a course to see it here.</p>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
+          {paged.map((course) => (
+            <CourseCard key={course.id} course={course} />
           ))}
-        </select>
+        </div>
+      )}
 
-        <select
-          value={difficulty}
-          onChange={(event) => {
-            setDifficulty(event.target.value);
-            setPage(1);
-          }}
-        >
-          <option value="all">All Levels</option>
-          <option value="beginner">Beginner</option>
-          <option value="intermediate">Intermediate</option>
-          <option value="advanced">Advanced</option>
-        </select>
-
-        <select
-          value={priceType}
-          onChange={(event) => {
-            setPriceType(event.target.value);
-            setPage(1);
-          }}
-        >
-          <option value="all">All Prices</option>
-          <option value="free">Free</option>
-          <option value="paid">Paid</option>
-        </select>
-
-        <select
-          value={language}
-          onChange={(event) => {
-            setLanguage(event.target.value);
-            setPage(1);
-          }}
-        >
-          {languages.map((item) => (
-            <option key={item} value={item}>
-              {item}
-            </option>
+      {/* Pagination */}
+      {pageCount > 1 && (
+        <div className="flex items-center gap-2">
+          {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
+            <button
+              key={n}
+              onClick={() => setPage(n)}
+              className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition ${
+                n === safePage
+                  ? "bg-[#149ad9] text-white shadow-sm"
+                  : "bg-white text-gray-500 shadow-sm hover:text-gray-800"
+              }`}
+            >
+              {n}
+            </button>
           ))}
-        </select>
-
-        <select value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
-          <option value="popularity">Popularity</option>
-          <option value="rating">Rating</option>
-          <option value="priceAsc">Price: Low to High</option>
-          <option value="priceDesc">Price: High to Low</option>
-        </select>
-      </div>
-
-      <div className="cards-grid">
-        {pagedCourses.map((course) => (
-          <CourseCard
-            key={course.id}
-            course={course}
-            isEnrolled={Boolean(enrollmentByCourseId[course.id])}
-          />
-        ))}
-      </div>
-
-      <div className="pagination">
-        <Pagination>
-          <PaginationContent>
-            <PaginationItem>
-              <Button
-                variant="ghost"
-                disabled={normalizedPage === 1}
-                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-              >
-                <ChevronLeft className="rtl:rotate-180" />
-                Prev
-              </Button>
-            </PaginationItem>
-
-            {pageItems.map((item, index) => (
-              <PaginationItem key={`${item}-${index}`}>
-                {item === "ellipsis" ? (
-                  <PaginationEllipsis />
-                ) : (
-                  <Button
-                    mode="icon"
-                    variant={item === normalizedPage ? "outline" : "ghost"}
-                    onClick={() => setPage(item)}
-                  >
-                    {item}
-                  </Button>
-                )}
-              </PaginationItem>
-            ))}
-
-            <PaginationItem>
-              <Button
-                variant="ghost"
-                disabled={normalizedPage === pageCount}
-                onClick={() => setPage((prev) => Math.min(prev + 1, pageCount))}
-              >
-                Next
-                <ChevronRight className="rtl:rotate-180" />
-              </Button>
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
-      </div>
-    </section>
+        </div>
+      )}
+    </div>
   );
 }
