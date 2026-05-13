@@ -1,5 +1,6 @@
 const GATEWAY_URL =
-  import.meta.env.VITE_GATEWAY_URL || "http://localhost:8080/";
+  import.meta.env.VITE_GATEWAY_URL ||
+  "https://api.admin.u-code.io/v2/invoke_function/lms-qobulov/";
 
 function buildGatewayBody({ method, objectData = {} }) {
   return {

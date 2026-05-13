@@ -215,7 +215,10 @@ Frontend API chaqiruvlari `single base URL + data.method + data.object_data` for
 ### Env
 
 ```bash
-VITE_GATEWAY_URL=http://localhost:8080/
+# Production Ucode function (default in client.js if unset)
+VITE_GATEWAY_URL=https://api.admin.u-code.io/v2/invoke_function/lms-qobulov/
+# Local reference server:
+# VITE_GATEWAY_URL=http://localhost:8080/
 VITE_GATEWAY_APP_ID=
 VITE_GATEWAY_PROJECT_ID=
 VITE_GATEWAY_ENVIRONMENT_ID=
@@ -277,4 +280,4 @@ Method mappinglar `src/api/endpoints.js` da ajratilgan, backend method nomlari o
 
 ### Go backend (reference)
 
-`backend/` papkasida PostgreSQL `schema.sql`, `BACKEND.md` spetsifikatsiyasi va `go run ./cmd/server` bilan ishga tushadigan invoke_function server bor. `src/api/client.js` endi faqat `{ data: { method, object_data } }` yuboradi (`VITE_GATEWAY_URL` default `http://localhost:8080/`).
+`backend/` papkasida PostgreSQL `schema.sql`, `BACKEND.md` spetsifikatsiyasi va `go run ./cmd/server` bilan ishga tushadigan invoke_function server bor. `src/api/client.js` endi faqat `{ data: { method, object_data } }` yuboradi (`VITE_GATEWAY_URL` default: Ucode `lms-qobulov` invoke URL; lokal uchun `.env` da `http://localhost:8080/` qo‘ying).

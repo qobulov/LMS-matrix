@@ -10,7 +10,6 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "ignoreDeprecations": "6.0",
     "strict": false,
     "baseUrl": ".",
     "paths": {
