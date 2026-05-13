@@ -68,6 +68,19 @@ export default {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        /** Damiun LMS (Figma) brand — use bg-damiun-primary, text-damiun-wordmark, etc. */
+        damiun: {
+          primary: '#0099d8',
+          'primary-hover': '#0086c0',
+          page: '#e6ebf1',
+          wordmark: '#1a2235',
+          body: '#303948',
+          muted: '#5f6880',
+          'surface-app': '#f5f6fa',
+          'nav-tint': '#e8f5fd',
+          'hero-aqua': '#22cde8',
+          'hero-deep': '#0a3c8c',
+        },
         sidebar: {
           DEFAULT: 'hsl(var(--sidebar-background))',
           foreground: 'hsl(var(--sidebar-foreground))',

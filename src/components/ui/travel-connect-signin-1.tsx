@@ -16,14 +16,14 @@ const SLIDES = [
   },
   {
     image: authImage2,
-    heading: 'Connect with expert mentors through live 1-on-1 sessions from anywhere in the world.',
-    title: 'Mentoring & Live Sessions',
+    heading: 'Get guidance from industry professionals to help you grow faster and build a strong portfolio.',
+    title: 'Personalized 1-on-1 Mentoring',
     sub: 'in Damiun Indonesia',
   },
   {
     image: authImage3,
-    heading: 'Collaborate on real projects and build your portfolio with hands-on learning.',
-    title: 'Hands-on Collaborative Learning',
+    heading: 'Join talent pools, apply for internships, and get matched with jobs that fit your profile.',
+    title: 'Connect with Job Opportunities',
     sub: 'in Damiun Indonesia',
   },
 ];
@@ -41,18 +41,34 @@ interface TravelConnectSignInProps {
   mode?: 'login' | 'register';
   onSubmit: (values: LoginFields | RegisterFields) => Promise<void> | void;
   onSwitchMode?: () => void;
+  /** Server-side validation (e.g. register API) */
+  error?: string;
+  /** Disables submit while parent handles async work */
+  loading?: boolean;
 }
 
+/** Brand + surfaces aligned to Damiun auth mock (see design reference). */
+const brand = {
+  primary: '#0099d8',
+  pageBg: '#e6ebf1',
+  wordmark: '#1a2235',
+  body: '#303948',
+  muted: '#5f6880',
+  heroSub: '#9fd9ff',
+} as const;
+
 const inputClass =
-  'h-14 w-full rounded-full border-0 bg-white/65 px-6 text-xl text-[#3f4960] placeholder:text-[#6a758f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#149ad9] sm:h-16 sm:px-7 sm:text-2xl lg:text-[2rem]';
+  'h-12 w-full rounded-full border border-white/60 bg-[rgba(255,255,255,0.82)] px-5 text-base text-[#3f4960] shadow-[0_1px_0_rgba(255,255,255,0.6)] placeholder:text-[#6a758f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-damiun-primary focus-visible:ring-offset-0 sm:h-12 sm:px-6 sm:text-[0.9375rem]';
 
 const labelClass =
-  'text-[1.7rem] font-semibold leading-tight text-[#161f31] sm:text-[2rem]';
+  'text-[0.9375rem] font-semibold leading-tight text-[#1a2235] sm:text-base';
 
 const TravelConnectSignIn = ({
   mode = 'login',
   onSubmit,
   onSwitchMode,
+  error: externalError,
+  loading = false,
 }: TravelConnectSignInProps) => {
   const isRegister = mode === 'register';
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -83,32 +99,46 @@ const TravelConnectSignIn = ({
   } = useForm<RegisterFields>({ mode: 'onTouched' });
 
   return (
-    <div className="min-h-screen w-full bg-[#d7dbe1]">
-      <div className="grid max-h-screen w-full grid-cols-1 lg:grid-cols-2">
-        <section className="relative flex min-h-screen w-full items-center justify-center px-5 py-8 sm:px-8 sm:py-10 lg:px-10 xl:px-16">
-          <div className="flex w-full max-w-[720px] flex-col gap-8 sm:gap-10 lg:min-h-[78vh] lg:justify-between">
-            <div className="space-y-7 sm:space-y-8 lg:space-y-9">
+    <div className="min-h-screen w-full font-dm-sans" style={{ backgroundColor: brand.pageBg }}>
+      <div className="mx-auto grid min-h-screen w-full max-w-[1280px] grid-cols-1 lg:grid-cols-2 lg:max-h-screen">
+        <section className="relative flex min-h-screen w-full items-center justify-center px-6 py-8 sm:px-10 sm:py-10 lg:min-h-screen lg:px-12 lg:py-12">
+          <div className="flex w-full max-w-[440px] flex-col gap-8 sm:gap-9 lg:min-h-[72vh] lg:justify-between xl:max-w-[460px]">
+            <div className="space-y-6 sm:space-y-7">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#149ad9] text-white sm:h-12 sm:w-12">
-                  <div className="h-6 w-4 rounded-sm bg-white/90 sm:h-7" />
+                <div
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white sm:h-11 sm:w-11"
+                  style={{ backgroundColor: brand.primary }}
+                >
+                  <div className="h-5 w-3.5 rounded-sm bg-white/95 sm:h-6 sm:w-4" />
                 </div>
-                <div className="leading-none text-[#149ad9]">
-                  <p className="text-xl font-semibold tracking-[0.08em] sm:text-2xl">Damiun</p>
-                  <p className="mt-1 text-xl font-semibold tracking-[0.08em] sm:text-2xl">Indonesia</p>
-                </div>
+                <p
+                  className="text-[1.05rem] font-semibold leading-snug tracking-tight sm:text-lg"
+                  style={{ color: brand.wordmark }}
+                >
+                  Damiun Indonesia
+                </p>
               </div>
 
-              <div className="w-full space-y-6">
-                <div className="space-y-2.5">
-                  <h1 className="text-4xl font-semibold leading-tight text-[#161f31] sm:text-5xl lg:text-[3.1rem]">
-                    {isRegister ? 'Create Account' : 'Sign In'}
+              <div className="w-full space-y-5 sm:space-y-6">
+                <div className="space-y-2">
+                  <h1
+                    className="text-[1.75rem] font-semibold leading-tight tracking-tight sm:text-[2rem]"
+                    style={{ color: brand.wordmark }}
+                  >
+                    {isRegister ? 'Sign Up' : 'Sign In'}
                   </h1>
-                  <p className="text-base leading-snug text-[#303948] sm:text-lg lg:text-xl">
+                  <p className="text-sm leading-relaxed sm:text-[0.9375rem]" style={{ color: brand.body }}>
                     {isRegister
-                      ? 'Create your account to start learning and growing.'
+                      ? 'Create an account and start your career journey today.'
                       : 'Sign In to your account to start learning and growing.'}
                   </p>
                 </div>
+
+                {externalError ? (
+                  <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700 sm:text-base">
+                    {externalError}
+                  </p>
+                ) : null}
 
                 <form className="space-y-5 sm:space-y-6" noValidate onSubmit={handleSubmit(onSubmit)}>
                   {isRegister && (
@@ -161,8 +191,8 @@ const TravelConnectSignIn = ({
                       <input
                         id="password"
                         type={isPasswordVisible ? 'text' : 'password'}
-                        placeholder={isRegister ? 'Create your password' : 'Input your password'}
-                        className={`${inputClass} pr-14 sm:pr-16 lg:pr-20`}
+                        placeholder="Input your password"
+                        className={`${inputClass} pr-12 sm:pr-14`}
                         {...register('password', {
                           required: 'Password is required',
                           minLength: { value: 8, message: 'Password must be at least 8 characters' },
@@ -177,10 +207,10 @@ const TravelConnectSignIn = ({
                       <button
                         type="button"
                         aria-label="Toggle password visibility"
-                        className="absolute right-5 top-1/2 -translate-y-1/2 text-[#6c7388] transition hover:text-[#4e576f] sm:right-7"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[#6c7388] transition hover:text-[#4e576f] sm:right-5"
                         onClick={() => setIsPasswordVisible((prev) => !prev)}
                       >
-                        {isPasswordVisible ? <EyeOff size={24} /> : <Eye size={24} />}
+                        {isPasswordVisible ? <EyeOff size={20} /> : <Eye size={20} />}
                       </button>
                     </div>
                     {errors.password && (
@@ -188,29 +218,36 @@ const TravelConnectSignIn = ({
                     )}
                   </div>
 
-                  {!isRegister && (
-                    <div className="text-right text-base text-[#5f6880] sm:text-lg lg:text-2xl">
-                      <button type="button" className="transition hover:text-[#149ad9]">
-                        Forgot my password
-                      </button>
-                    </div>
-                  )}
+                  <div className="text-right text-sm sm:text-[0.9375rem]" style={{ color: brand.muted }}>
+                    <button
+                      type="button"
+                      className="transition hover:text-damiun-primary"
+                      style={{ color: brand.muted }}
+                    >
+                      Forgot my password
+                    </button>
+                  </div>
 
                   <button
                     type="submit"
-                    disabled={isSubmitting}
-                    className="h-14 w-full rounded-full bg-[#149ad9] text-2xl font-semibold text-white transition hover:bg-[#0f8dc8] disabled:opacity-70 sm:h-16 sm:text-3xl lg:text-[2.2rem]"
+                    disabled={isSubmitting || loading}
+                    className="h-12 w-full rounded-full bg-damiun-primary text-[0.9375rem] font-semibold text-white shadow-sm transition hover:bg-damiun-primary-hover disabled:opacity-70 disabled:hover:bg-damiun-primary sm:h-12 sm:text-base"
                   >
-                    {isSubmitting
-                      ? isRegister ? 'Creating...' : 'Signing in...'
-                      : isRegister ? 'Create Account' : 'Sign In'}
+                    {isSubmitting || loading
+                      ? isRegister
+                        ? 'Signing up...'
+                        : 'Signing in...'
+                      : isRegister
+                        ? 'Sign Up'
+                        : 'Sign In'}
                   </button>
 
-                  <div className="text-center text-base text-[#5f6880] sm:text-lg lg:text-2xl">
-                    {isRegister ? 'Already have an account? ' : "Don't have an account? "}
+                  <div className="text-center text-sm sm:text-[0.9375rem]" style={{ color: brand.muted }}>
+                    {isRegister ? 'Have an account? ' : "Don't have an account? "}
                     <button
                       type="button"
-                      className="font-semibold text-[#149ad9] transition hover:text-[#0e85bc]"
+                      className="font-semibold transition hover:opacity-90"
+                      style={{ color: brand.primary }}
                       onClick={onSwitchMode}
                     >
                       {isRegister ? 'Sign In' : 'Sign Up'}
@@ -220,15 +257,24 @@ const TravelConnectSignIn = ({
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm text-[#65718c] sm:gap-x-12 sm:text-base">
-              <a href="#">About</a>
-              <a href="#">Terms &amp; Conditions</a>
-              <a href="#">Privacy Policy</a>
+            <div
+              className="flex flex-wrap gap-x-6 gap-y-2 text-xs sm:gap-x-8 sm:text-[0.8125rem]"
+              style={{ color: brand.muted }}
+            >
+              <a href="#" className="transition hover:text-damiun-primary">
+                About
+              </a>
+              <a href="#" className="transition hover:text-damiun-primary">
+                Terms &amp; Conditions
+              </a>
+              <a href="#" className="transition hover:text-damiun-primary">
+                Privacy Policy
+              </a>
             </div>
           </div>
         </section>
 
-        <section className="relative hidden overflow-hidden lg:block">
+        <section className="relative hidden min-h-screen overflow-hidden lg:block">
           {/* Slide images */}
           {SLIDES.map((slide, i) => (
             <img
@@ -241,22 +287,27 @@ const TravelConnectSignIn = ({
             />
           ))}
 
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#07122e]/85" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent from-[35%] via-transparent to-[#0e1626]/80" />
 
-          <div className="absolute bottom-12 left-8 right-8 text-white xl:bottom-14 xl:left-12 xl:right-12">
+          <div className="absolute bottom-8 left-6 right-6 text-white sm:bottom-10 sm:left-8 sm:right-8 lg:bottom-10 lg:left-8 lg:right-8">
             {/* Slide text */}
             <p
               key={current}
-              className="max-w-[840px] animate-fade-in text-4xl font-medium leading-[1.16] xl:text-6xl"
+              className="max-w-[32rem] animate-fade-in text-xl font-medium leading-snug sm:text-2xl lg:text-3xl"
             >
               {SLIDES[current].heading}
             </p>
-            <div className="mt-7 xl:mt-10">
-              <p className="text-2xl font-semibold xl:text-4xl">{SLIDES[current].title}</p>
-              <p className="mt-2 text-xl text-white/90 xl:mt-3 xl:text-4xl">{SLIDES[current].sub}</p>
+            <div className="mt-5 sm:mt-6">
+              <p className="text-lg font-semibold text-white sm:text-xl lg:text-2xl">{SLIDES[current].title}</p>
+              <p
+                className="mt-1 text-base font-semibold sm:mt-1.5 sm:text-lg lg:text-xl"
+                style={{ color: brand.heroSub }}
+              >
+                {SLIDES[current].sub}
+              </p>
             </div>
 
-            <div className="mt-7 flex items-center justify-between xl:mt-10">
+            <div className="mt-6 flex items-center justify-between sm:mt-7">
               {/* Dot indicators */}
               <div className="flex items-center gap-2">
                 {SLIDES.map((_, i) => (
@@ -275,22 +326,22 @@ const TravelConnectSignIn = ({
               </div>
 
               {/* Prev / Next */}
-              <div className="flex items-center gap-3 xl:gap-4">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <button
                   type="button"
                   aria-label="Previous"
                   onClick={prev}
-                  className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/90 text-white transition hover:bg-white/20 xl:h-14 xl:w-14"
+                  className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white/90 text-white transition hover:bg-white/20 sm:h-11 sm:w-11"
                 >
-                  <ChevronLeft size={22} />
+                  <ChevronLeft size={20} />
                 </button>
                 <button
                   type="button"
                   aria-label="Next"
                   onClick={next}
-                  className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/90 text-white transition hover:bg-white/20 xl:h-14 xl:w-14"
+                  className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white/90 text-white transition hover:bg-white/20 sm:h-11 sm:w-11"
                 >
-                  <ChevronRight size={22} />
+                  <ChevronRight size={20} />
                 </button>
               </div>
             </div>

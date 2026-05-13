@@ -35,7 +35,7 @@ export function LessonViewerPage() {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4">
         <p className="text-gray-600">This lesson is only available after enrollment.</p>
-        <Link to={`/courses/${courseId}`} className="rounded-full bg-[#149ad9] px-6 py-2.5 text-sm font-semibold text-white">
+        <Link to={`/courses/${courseId}`} className="rounded-full bg-damiun-primary px-6 py-2.5 text-sm font-semibold text-white">
           View Course
         </Link>
       </div>
@@ -84,13 +84,13 @@ export function LessonViewerPage() {
                         onClick={() => navigate(`/learn/${courseId}/${l.id}`)}
                         className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left text-xs font-medium transition ${
                           isActive
-                            ? "bg-[#149ad9] text-white"
+                            ? "bg-damiun-primary text-white"
                             : "text-gray-600 hover:bg-gray-50"
                         }`}
                       >
                         <span className="line-clamp-1 flex-1">{l.title}</span>
                         {isDone && !isActive && (
-                          <CheckCircle2 size={14} className="flex-shrink-0 text-[#149ad9]" />
+                          <CheckCircle2 size={14} className="flex-shrink-0 text-damiun-primary" />
                         )}
                       </button>
                     </li>
@@ -141,7 +141,7 @@ export function LessonViewerPage() {
             {!completed.has(lesson.id) && (
               <button
                 onClick={() => completeLesson(courseId, lesson.id)}
-                className="rounded-full border border-[#149ad9] px-5 py-2.5 text-sm font-semibold text-[#149ad9] transition hover:bg-[#e8f5fd]"
+                className="rounded-full border border-damiun-primary px-5 py-2.5 text-sm font-semibold text-damiun-primary transition hover:bg-damiun-nav-tint"
               >
                 Mark Complete
               </button>
@@ -149,14 +149,14 @@ export function LessonViewerPage() {
             {nextLesson ? (
               <Link
                 to={`/learn/${courseId}/${nextLesson.id}`}
-                className="rounded-full bg-[#149ad9] px-7 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0f8dc8]"
+                className="rounded-full bg-damiun-primary px-7 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-damiun-primary-hover"
               >
                 Next Video
               </Link>
             ) : (
               <Link
                 to={`/quiz/${courseId}`}
-                className="rounded-full bg-[#149ad9] px-7 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0f8dc8]"
+                className="rounded-full bg-damiun-primary px-7 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-damiun-primary-hover"
               >
                 Take Quiz
               </Link>

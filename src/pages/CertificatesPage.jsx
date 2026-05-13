@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { ExternalLink } from "lucide-react";
 import { QRCode } from "../components/ui/qr-code";
 import { useLms } from "../data/LmsContext";
 import { formatDate } from "../utils/format";
@@ -10,10 +12,12 @@ export function CertificatesPage() {
   const certificates = myEnrollments
     .filter((item) => item.certificate)
     .map((item) => {
-      const course = courses.find((courseItem) => courseItem.id === item.courseId);
+      const crs = courses.find((courseItem) => courseItem.id === item.courseId);
+      const instructor = crs ? users.find((u) => u.id === crs.instructorId) : null;
       return {
         ...item.certificate,
-        courseTitle: course?.title || "Unknown",
+        courseTitle: crs?.title || "Unknown",
+        instructorName: instructor?.fullName || "—",
       };
     });
 
@@ -27,67 +31,92 @@ export function CertificatesPage() {
     if (!found) return { ok: false };
 
     const owner = users.find((user) => user.id === found.userId);
-    const course = courses.find((item) => item.id === found.courseId);
+    const crs = courses.find((item) => item.id === found.courseId);
+    const instructor = crs ? users.find((u) => u.id === crs.instructorId) : null;
 
     return {
       ok: true,
       owner: owner?.fullName,
-      course: course?.title,
+      course: crs?.title,
+      instructor: instructor?.fullName,
       issuedAt: found.certificate?.issuedAt,
     };
   }, [verifyId, enrollments, users, courses]);
 
   return (
-    <section className="stack">
-      <h2>Certificates</h2>
+    <div className="flex flex-col gap-8">
+      <div>
+        <h1 className="text-2xl font-bold text-damiun-wordmark">Certificates</h1>
+        <p className="mt-1 text-sm text-damiun-muted">Your issued certificates and public ID verification.</p>
+      </div>
 
       {certificates.length === 0 ? (
-        <p>Certificate hali yo'q. Course va quizni to'liq tugating.</p>
+        <div className="rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-gray-100">
+          <p className="text-damiun-body">Certificate hali yo&apos;q. Course va quizni to&apos;liq tugating.</p>
+        </div>
       ) : (
-        <div className="stack">
+        <div className="flex flex-col gap-5">
           {certificates.map((certificate) => (
-            <article key={certificate.id} className="certificate-card">
-              <p className="eyebrow">Certificate of Completion</p>
-              <h3>{certificate.courseTitle}</h3>
-              <p>{currentUser.fullName}</p>
-              <p>Issued: {formatDate(certificate.issuedAt)}</p>
-              <p>Verification ID: {certificate.id}</p>
-              <div className="row-gap" style={{ marginTop: "0.8rem", alignItems: "flex-start" }}>
+            <article
+              key={certificate.id}
+              className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm ring-1 ring-gray-50 sm:p-8"
+            >
+              <p className="text-xs font-bold uppercase tracking-widest text-damiun-primary">Certificate of completion</p>
+              <h2 className="mt-2 text-xl font-bold text-damiun-wordmark">{certificate.courseTitle}</h2>
+              <p className="mt-1 text-sm text-damiun-muted">
+                Instructor: <span className="font-medium text-damiun-body">{certificate.instructorName}</span>
+              </p>
+              <p className="mt-2 text-sm text-damiun-body">{currentUser.fullName}</p>
+              <p className="mt-1 text-sm text-damiun-muted">Issued: {formatDate(certificate.issuedAt)}</p>
+              <p className="mt-1 font-mono text-sm text-damiun-wordmark">ID: {certificate.id}</p>
+              <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-start">
                 <QRCode
-                  value={`lms-matrix://verify?certificate_id=${encodeURIComponent(certificate.id)}`}
+                  value={`${typeof window !== "undefined" ? window.location.origin : ""}/verify/${encodeURIComponent(certificate.id)}`}
                   size={124}
-                  className="rounded-xl border"
+                  className="rounded-xl border border-gray-200"
                 />
-                <p className="small-text">
-                  QR ni scan qilib verification ID ni oling va Public Verification maydonida
-                  tekshiring.
-                </p>
+                <div className="space-y-2 text-sm text-damiun-muted">
+                  <p>Scan or share the public verify link (no login required).</p>
+                  <Link
+                    to={`/verify/${encodeURIComponent(certificate.id)}`}
+                    className="inline-flex items-center gap-1 font-semibold text-damiun-primary hover:underline"
+                  >
+                    Open verify page <ExternalLink className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
               </div>
             </article>
           ))}
         </div>
       )}
 
-      <article className="panel stack">
-        <h3>Public Verification</h3>
-        <label>
+      <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm ring-1 ring-gray-50 sm:p-8">
+        <h2 className="text-lg font-bold text-damiun-wordmark">Public verification</h2>
+        <p className="mt-1 text-sm text-damiun-muted">Enter a certificate ID to validate against platform records.</p>
+        <label className="mt-4 block text-sm font-medium text-damiun-wordmark">
           Certificate ID
-          <input value={verifyId} onChange={(event) => setVerifyId(event.target.value)} />
+          <input
+            value={verifyId}
+            onChange={(event) => setVerifyId(event.target.value)}
+            className="mt-2 w-full max-w-md rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none transition focus:border-damiun-primary focus:bg-white focus:ring-2 focus:ring-damiun-primary/20"
+            placeholder="e.g. CERT-..."
+          />
         </label>
 
         {verifyResult ? (
           verifyResult.ok ? (
-            <div className="panel">
-              <p>Status: Valid</p>
-              <p>Student: {verifyResult.owner}</p>
+            <div className="mt-4 max-w-lg rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 text-sm text-emerald-900">
+              <p className="font-bold">Valid certificate</p>
+              <p className="mt-2">Student: {verifyResult.owner}</p>
               <p>Course: {verifyResult.course}</p>
+              <p>Instructor: {verifyResult.instructor}</p>
               <p>Issued: {formatDate(verifyResult.issuedAt)}</p>
             </div>
           ) : (
-            <p className="error-text">Certificate topilmadi.</p>
+            <p className="mt-4 text-sm font-medium text-red-600">Certificate topilmadi.</p>
           )
         ) : null}
-      </article>
-    </section>
+      </section>
+    </div>
   );
 }

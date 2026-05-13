@@ -47,6 +47,18 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Damiun / Figma-aligned brand (mirrors tailwind theme.extend.colors.damiun) */
+    --damiun-primary: #0099d8;
+    --damiun-primary-hover: #0086c0;
+    --damiun-page: #e6ebf1;
+    --damiun-wordmark: #1a2235;
+    --damiun-body: #303948;
+    --damiun-muted: #5f6880;
+    --damiun-surface-app: #f5f6fa;
+    --damiun-nav-tint: #e8f5fd;
+    --damiun-hero-aqua: #22cde8;
+    --damiun-hero-deep: #0a3c8c;
   }
 
   .dark {
@@ -85,6 +97,14 @@
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply min-h-screen bg-damiun-surface-app font-dm-sans text-gray-900;
   }
 }
 
@@ -164,7 +184,7 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply min-h-screen bg-damiun-surface-app font-dm-sans text-gray-900 antialiased;
   }
 }
 
@@ -179,8 +199,8 @@
   --legacy-text: #11252b;
   --legacy-muted: #557178;
   --legacy-border: #d7e3e5;
-  --legacy-primary: #0a7973;
-  --legacy-primary-strong: #085f5b;
+  --legacy-primary: var(--damiun-primary);
+  --legacy-primary-strong: var(--damiun-primary-hover);
   --legacy-secondary: #fff3dd;
   --legacy-secondary-border: #f5d79f;
   --legacy-accent: #f09a2a;
@@ -710,6 +730,9 @@ textarea:focus {
   display: grid;
   grid-template-columns: 250px 1fr;
   gap: 1rem;
+  min-height: 100vh;
+  padding: 1rem 1rem 2rem;
+  background: var(--damiun-surface-app);
 }
 
 .admin-sidebar {
@@ -737,9 +760,9 @@ textarea:focus {
 }
 
 .admin-nav-link.active {
-  background: #d8f0ec;
-  border-color: #bde2dd;
-  color: #073f3b;
+  background: var(--damiun-nav-tint);
+  border-color: #c5e7f5;
+  color: var(--damiun-wordmark);
 }
 
 .admin-content {
@@ -761,7 +784,7 @@ textarea:focus {
 
 .data-table th {
   color: #3f5f65;
-  background: #f6fbfc;
+  background: var(--damiun-nav-tint);
 }
 
 @media (max-width: 1100px) {

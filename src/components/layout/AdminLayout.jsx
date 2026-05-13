@@ -8,7 +8,7 @@ const adminNav = [
 
 export function AdminLayout() {
   return (
-    <div className="admin-shell">
+    <div className="admin-shell font-dm-sans">
       <aside className="admin-sidebar">
         <p className="eyebrow">SuperAdmin Panel</p>
         <h3>LMS Control</h3>

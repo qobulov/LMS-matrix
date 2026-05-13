@@ -15,6 +15,7 @@ import { InstructorDashboardPage } from "./pages/InstructorDashboardPage";
 import { LessonViewerPage } from "./pages/LessonViewerPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { PublicVerifyPage } from "./pages/PublicVerifyPage";
 import { QuizPage } from "./pages/QuizPage";
 import { StudentDashboardPage } from "./pages/StudentDashboardPage";
 import { LoginPage } from "./pages/auth/LoginPage";
@@ -39,6 +40,7 @@ function App() {
 
       {/* Course detail page accessible without auth for preview */}
       <Route path="/courses/:courseId" element={<CourseDetailPage />} />
+      <Route path="/verify/:certificateId" element={<PublicVerifyPage />} />
 
       <Route
         element={

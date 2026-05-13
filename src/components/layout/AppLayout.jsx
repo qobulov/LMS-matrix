@@ -47,12 +47,12 @@ export function AppLayout() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f5f6fa]">
+    <div className="flex h-screen overflow-hidden bg-damiun-surface-app">
       {/* Sidebar */}
       <aside className="flex w-[240px] flex-shrink-0 flex-col border-r border-gray-100 bg-white">
         {/* Logo */}
         <div className="flex items-center gap-3 px-6 py-6">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#149ad9]">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-damiun-primary">
             <svg viewBox="0 0 28 36" fill="none" className="h-6 w-6">
               <rect x="4" y="2" width="20" height="30" rx="4" stroke="white" strokeWidth="2.5" />
               <rect x="9" y="8" width="10" height="2" rx="1" fill="white" />
@@ -60,8 +60,8 @@ export function AppLayout() {
             </svg>
           </div>
           <div className="leading-tight">
-            <p className="text-base font-bold text-[#149ad9]">Damiun</p>
-            <p className="text-base font-bold text-[#149ad9]">Indonesia</p>
+            <p className="text-base font-bold text-damiun-wordmark">Damiun</p>
+            <p className="text-base font-bold text-damiun-wordmark">Indonesia</p>
           </div>
         </div>
 
@@ -79,7 +79,7 @@ export function AppLayout() {
                   className={({ isActive }) =>
                     `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
                       isActive && to !== "#"
-                        ? "bg-[#e8f5fd] text-[#149ad9]"
+                        ? "bg-damiun-nav-tint text-damiun-primary"
                         : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"
                     }`
                   }
@@ -88,14 +88,14 @@ export function AppLayout() {
                     <>
                       <span
                         className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                          isActive && to !== "#" ? "bg-[#149ad9] text-white" : "bg-gray-100 text-gray-500"
+                          isActive && to !== "#" ? "bg-damiun-primary text-white" : "bg-gray-100 text-gray-500"
                         }`}
                       >
                         <Icon size={16} />
                       </span>
                       <span className="flex-1">{label}</span>
                       {badge && (
-                        <span className="rounded-full bg-[#149ad9] px-2 py-0.5 text-[10px] font-bold text-white">
+                        <span className="rounded-full bg-damiun-primary px-2 py-0.5 text-[10px] font-bold text-white">
                           {badge}
                         </span>
                       )}
@@ -175,7 +175,7 @@ export function AppLayout() {
                 className="h-9 w-9 rounded-full object-cover"
               />
             ) : (
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#149ad9] text-sm font-bold text-white">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-damiun-primary text-sm font-bold text-white">
                 {initials}
               </div>
             )}

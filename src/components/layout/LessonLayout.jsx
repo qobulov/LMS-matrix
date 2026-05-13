@@ -11,12 +11,12 @@ export function LessonLayout() {
     : "?";
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-[#f5f6fa]">
+    <div className="flex h-screen flex-col overflow-hidden bg-damiun-surface-app font-dm-sans">
       {/* Header */}
       <header className="flex h-[68px] flex-shrink-0 items-center gap-4 border-b border-gray-100 bg-white px-6">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-sm font-semibold text-gray-700 transition hover:text-[#149ad9]"
+          className="flex items-center gap-2 text-sm font-semibold text-gray-700 transition hover:text-damiun-primary"
         >
           <ArrowLeft size={18} />
           Dashboard
@@ -48,7 +48,7 @@ export function LessonLayout() {
           {currentUser?.avatar ? (
             <img src={currentUser.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
           ) : (
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#149ad9] text-sm font-bold text-white">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-damiun-primary text-sm font-bold text-white">
               {initials}
             </div>
           )}
