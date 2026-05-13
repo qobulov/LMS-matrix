@@ -274,3 +274,7 @@ Hozirgi frontend quyidagilarni qamrab oladi:
 
 Frontend gateway formatda ishlaydi (`single URL + method + object_data`).
 Method mappinglar `src/api/endpoints.js` da ajratilgan, backend method nomlari o'zgarsa shu faylning o'zini update qilish kifoya.
+
+### Go backend (reference)
+
+`backend/` papkasida PostgreSQL `schema.sql`, `BACKEND.md` spetsifikatsiyasi va `go run ./cmd/server` bilan ishga tushadigan invoke_function server bor. `src/api/client.js` endi faqat `{ data: { method, object_data } }` yuboradi (`VITE_GATEWAY_URL` default `http://localhost:8080/`).

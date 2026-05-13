@@ -8,11 +8,12 @@ import {
   HelpCircle,
   LogOut,
   Search,
-  Settings,
   ShoppingBag,
+  User,
   Zap,
 } from "lucide-react";
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { APP_NAME } from "../../constants/branding";
 import { useLms } from "../../data/LmsContext";
 
 const generalNav = [
@@ -24,7 +25,7 @@ const generalNav = [
 ];
 
 const otherNav = [
-  { to: "#", label: "Settings", icon: Settings },
+  { to: "/profile", label: "Profile", icon: User },
   { to: "#", label: "Help", icon: HelpCircle },
 ];
 
@@ -46,6 +47,10 @@ export function AppLayout() {
     navigate("/login", { replace: true });
   };
 
+  const brandWords = APP_NAME.trim().split(/\s+/);
+  const brandLine1 = brandWords[0] ?? APP_NAME;
+  const brandLine2 = brandWords.slice(1).join(" ");
+
   return (
     <div className="flex h-screen overflow-hidden bg-damiun-surface-app">
       {/* Sidebar */}
@@ -60,8 +65,10 @@ export function AppLayout() {
             </svg>
           </div>
           <div className="leading-tight">
-            <p className="text-base font-bold text-damiun-wordmark">Damiun</p>
-            <p className="text-base font-bold text-damiun-wordmark">Indonesia</p>
+            <p className="text-base font-bold text-damiun-wordmark">{brandLine1}</p>
+            {brandLine2 ? (
+              <p className="text-base font-bold text-damiun-wordmark">{brandLine2}</p>
+            ) : null}
           </div>
         </div>
 
@@ -114,12 +121,26 @@ export function AppLayout() {
               <li key={label}>
                 <NavLink
                   to={to}
-                  className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-800"
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                      isActive && to !== "#"
+                        ? "bg-damiun-nav-tint text-damiun-primary"
+                        : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"
+                    }`
+                  }
                 >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-                    <Icon size={16} />
-                  </span>
-                  {label}
+                  {({ isActive }) => (
+                    <>
+                      <span
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                          isActive && to !== "#" ? "bg-damiun-primary text-white" : "bg-gray-100 text-gray-500"
+                        }`}
+                      >
+                        <Icon size={16} />
+                      </span>
+                      {label}
+                    </>
+                  )}
                 </NavLink>
               </li>
             ))}
@@ -165,21 +186,27 @@ export function AppLayout() {
             </button>
           </div>
 
-          {/* User */}
-          <div className="flex items-center gap-3 pl-2">
-            <span className="text-sm font-semibold text-gray-800">{currentUser?.fullName ?? "Guest"}</span>
+          {/* User — opens profile (README) */}
+          <Link
+            to="/profile"
+            className="group flex items-center gap-3 rounded-full py-1.5 pl-3 pr-1.5 transition hover:bg-gray-100"
+            aria-label="Open profile"
+          >
+            <span className="max-w-[140px] truncate text-sm font-semibold text-gray-800 group-hover:text-damiun-primary sm:max-w-[200px]">
+              {currentUser?.fullName ?? "Guest"}
+            </span>
             {currentUser?.avatar ? (
               <img
                 src={currentUser.avatar}
-                alt={currentUser.fullName}
-                className="h-9 w-9 rounded-full object-cover"
+                alt=""
+                className="h-9 w-9 rounded-full object-cover ring-2 ring-transparent transition group-hover:ring-damiun-primary/30"
               />
             ) : (
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-damiun-primary text-sm font-bold text-white">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-damiun-primary text-sm font-bold text-white ring-2 ring-transparent transition group-hover:ring-damiun-primary/50">
                 {initials}
               </div>
             )}
-          </div>
+          </Link>
         </header>
 
         {/* Page content */}

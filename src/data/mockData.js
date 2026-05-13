@@ -1,5 +1,18 @@
+/**
+ * Demo ma'lumotlar: `LmsProvider` (LmsContext) dastlabki state sifatida import qiladi.
+ * Backend ulanganda shu struktura API javoblariga yaqin tutiladi.
+ *
+ * Asosiy bog'lanishlar:
+ * - users[].id  ->  courses[].instructorId, enrollments[].userId
+ * - enrollments[].courseId  ->  courses[].id
+ * - payments[].courseId  ->  admin moliya hisobotlari (enrollment_id emas, demo soddalashtirilgan)
+ *
+ * Dars (lesson): type "video" | "text" | "file"; video uchun odatda resourceUrl; matn uchun content.
+ * Quiz: options[] + correctOptionIndexes (bitta to'g'ri javob indekslari).
+ */
 export const roles = ["student", "instructor", "superadmin"];
 
+/** Ro'yxatdan login qilinadi (parol oddiy matn, faqat demo). Instructorlarda rating ixtiyoriy. */
 export const users = [
   {
     id: "u-admin-1",
@@ -55,8 +68,13 @@ export const users = [
   },
 ];
 
+/** Katalog filtrlari / CreateCourse sahifasi uchun kategoriya ro'yxati */
 export const categories = ["Programming", "Design", "Marketing", "Language"];
 
+/**
+ * Kurslar: modul -> darslar, finalQuiz, sharhlar.
+ * status: "draft" | "published"; narx so'mda (0 = bepul).
+ */
 export const courses = [
   {
     id: "c-react-bootcamp",
@@ -276,14 +294,18 @@ export const courses = [
   },
 ];
 
+/**
+ * Talaba-kurs bog'lanishi: progress, tugallangan dars idlari, quiz attemptlari, sertifikat.
+ * status: "active" | "completed" | "dropped" (demo asosan completed).
+ */
 export const enrollments = [
   {
     id: "en-1",
     userId: "u-student-1",
     courseId: "c-react-bootcamp",
-    status: "active",
-    progress: 50,
-    completedLessonIds: ["l-react-1", "l-react-2"],
+    status: "completed",
+    progress: 100,
+    completedLessonIds: ["l-react-1", "l-react-2", "l-react-3", "l-react-4"],
     attempts: [
       {
         quizId: "q-react-final",
@@ -292,7 +314,10 @@ export const enrollments = [
         submittedAt: "2026-04-28T10:30:00Z",
       },
     ],
-    certificate: null,
+    certificate: {
+      id: "CERT-C-REACT-BOOTCAMP-U-STUDENT-1",
+      issuedAt: "2026-05-01T14:00:00Z",
+    },
   },
   {
     id: "en-2",
@@ -301,14 +326,65 @@ export const enrollments = [
     status: "completed",
     progress: 100,
     completedLessonIds: ["l-ux-1"],
-    attempts: [],
+    attempts: [
+      {
+        quizId: "q-ux-final",
+        score: 88,
+        timeSpentMin: 12,
+        submittedAt: "2026-02-09T16:00:00Z",
+      },
+    ],
     certificate: {
       id: "CERT-C-UX-PRO-U-STUDENT-2",
       issuedAt: "2026-02-10T08:00:00Z",
     },
   },
+  {
+    id: "en-3",
+    userId: "u-student-1",
+    courseId: "c-seo-start",
+    status: "completed",
+    progress: 100,
+    completedLessonIds: ["l-seo-1"],
+    attempts: [
+      {
+        quizId: "q-seo-final",
+        score: 92,
+        timeSpentMin: 10,
+        submittedAt: "2026-05-08T09:15:00Z",
+      },
+    ],
+    certificate: {
+      id: "CERT-C-SEO-START-U-STUDENT-1",
+      issuedAt: "2026-05-08T09:20:00Z",
+    },
+  },
+  {
+    id: "en-4",
+    userId: "u-student-2",
+    courseId: "c-seo-start",
+    status: "completed",
+    progress: 100,
+    completedLessonIds: ["l-seo-1"],
+    attempts: [
+      {
+        quizId: "q-seo-final",
+        score: 76,
+        timeSpentMin: 14,
+        submittedAt: "2026-04-20T11:00:00Z",
+      },
+    ],
+    certificate: {
+      id: "CERT-C-SEO-START-U-STUDENT-2",
+      issuedAt: "2026-04-20T11:05:00Z",
+    },
+  },
 ];
 
+/**
+ * To'lovlar (demo): AdminReportsPage to'g'ridan-to'g'ri import qiladi.
+ * amount / instructorPayout / date — moliya jadvali uchun.
+ */
 export const payments = [
   {
     id: "p-1",

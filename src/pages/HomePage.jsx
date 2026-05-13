@@ -75,7 +75,7 @@ export function HomePage() {
       {/* Overview banner — Figma export 985×320 */}
       <Link
         to="/catalog"
-        className="mx-auto block w-full max-w-[985px] overflow-hidden rounded-[24px] shadow-sm ring-1 ring-black/[0.06] transition hover:opacity-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-damiun-primary"
+        className="mx-auto block w-full  overflow-hidden   transition hover:opacity-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-damiun-primary"
         aria-label="Start learning — open course catalog"
       >
         <img

@@ -6,25 +6,28 @@ import { Eye, EyeOff, ChevronLeft, ChevronRight } from 'lucide-react';
 import authImage1 from '../../assets/images/auth_image1.png';
 import authImage2 from '../../assets/images/auth_image2.png';
 import authImage3 from '../../assets/images/auth_image3.png';
+import { APP_NAME } from '../../constants/branding';
+
+const slideSub = `on ${APP_NAME}`;
 
 const SLIDES = [
   {
     image: authImage1,
     heading: 'Access hundreds of high-quality courses designed to help you upskill anytime, anywhere.',
     title: 'Learn with Expert Video Courses',
-    sub: 'in Damiun Indonesia',
+    sub: slideSub,
   },
   {
     image: authImage2,
     heading: 'Get guidance from industry professionals to help you grow faster and build a strong portfolio.',
     title: 'Personalized 1-on-1 Mentoring',
-    sub: 'in Damiun Indonesia',
+    sub: slideSub,
   },
   {
     image: authImage3,
     heading: 'Join talent pools, apply for internships, and get matched with jobs that fit your profile.',
     title: 'Connect with Job Opportunities',
-    sub: 'in Damiun Indonesia',
+    sub: slideSub,
   },
 ];
 
@@ -47,7 +50,7 @@ interface TravelConnectSignInProps {
   loading?: boolean;
 }
 
-/** Brand + surfaces aligned to Damiun auth mock (see design reference). */
+/** Brand + surfaces for auth layout (design reference). */
 const brand = {
   primary: '#0099d8',
   pageBg: '#e6ebf1',
@@ -115,7 +118,7 @@ const TravelConnectSignIn = ({
                   className="text-[1.05rem] font-semibold leading-snug tracking-tight sm:text-lg"
                   style={{ color: brand.wordmark }}
                 >
-                  Damiun Indonesia
+                  {APP_NAME}
                 </p>
               </div>
 
