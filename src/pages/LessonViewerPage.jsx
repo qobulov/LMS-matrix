@@ -1,6 +1,8 @@
 import { CheckCircle2 } from "lucide-react";
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
+import { enrollmentApi } from "../api/endpoints";
 import { useLms } from "../data/LmsContext";
 
 function getYouTubeId(url) {
@@ -8,12 +10,83 @@ function getYouTubeId(url) {
   return m?.[1] ?? null;
 }
 
+function mapViewerToState(data, courseIdStr, lessonIdStr) {
+  const d = data ?? {};
+  const lessonCurrent = d.lesson ?? {};
+  const completedIds = new Set((d.completed_lesson_ids ?? []).map(String));
+  const modules = (d.modules ?? []).map((m) => ({
+    id: String(m.id),
+    title: m.title ?? "",
+    lessons: (m.lessons ?? []).map((l) => {
+      const id = String(l.id);
+      const isCurrent = id === String(lessonCurrent.id ?? lessonIdStr);
+      return {
+        id,
+        title: l.title ?? "",
+        isPreview: Boolean(l.is_preview),
+        durationMin: isCurrent ? (lessonCurrent.duration_min ?? l.duration_min ?? 0) : (l.duration_min ?? 0),
+        resourceUrl: isCurrent ? (lessonCurrent.video_url ?? "") : "",
+        type: "video",
+        content: "",
+        moduleTitle: m.title,
+        moduleId: String(m.id),
+      };
+    }),
+  }));
+
+  const course = {
+    id: String(d.course?.id ?? courseIdStr),
+    title: d.course?.title ?? "",
+    coverImage: d.course?.cover_image ?? "",
+    modules,
+  };
+
+  return { course, completedIds };
+}
+
 export function LessonViewerPage() {
   const { courseId, lessonId } = useParams();
   const navigate = useNavigate();
-  const { courses, enrollmentByCourseId, completeLesson } = useLms();
+  const { getToken } = useLms();
+  const [course, setCourse] = useState(null);
+  const [completed, setCompleted] = useState(() => new Set());
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [marking, setMarking] = useState(false);
 
-  const course = useMemo(() => courses.find((c) => c.id === courseId), [courses, courseId]);
+  const load = useCallback(async () => {
+    const token = getToken();
+    if (!courseId || !lessonId) return;
+    const raw = await enrollmentApi.getLessonViewer(
+      courseId,
+      lessonId,
+      token ? { token } : {},
+    );
+    const { course: c, completedIds } = mapViewerToState(raw, courseId, lessonId);
+    setCourse(c);
+    setCompleted(completedIds);
+  }, [courseId, lessonId, getToken]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        await load();
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load lesson");
+          setCourse(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [load]);
 
   const allLessons = useMemo(
     () => course?.modules.flatMap((m) => m.lessons.map((l) => ({ ...l, moduleTitle: m.title, moduleId: m.id }))) ?? [],
@@ -24,17 +97,14 @@ export function LessonViewerPage() {
   const lesson = allLessons[lessonIndex] ?? allLessons[0];
   const nextLesson = allLessons[lessonIndex + 1];
 
-  const enrollment = enrollmentByCourseId[courseId];
-  const completed = new Set(enrollment?.completedLessonIds ?? []);
+  if (loading) {
+    return <div className="flex h-full items-center justify-center text-gray-400">Loading…</div>;
+  }
 
-  if (!course) return <div className="flex h-full items-center justify-center text-gray-400">Course not found.</div>;
-  if (!lesson) return <div className="flex h-full items-center justify-center text-gray-400">Lesson not found.</div>;
-
-  const canAccess = lesson.isPreview || Boolean(enrollment);
-  if (!canAccess) {
+  if (error || !course) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-4">
-        <p className="text-gray-600">This lesson is only available after enrollment.</p>
+      <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
+        <p className="text-gray-600">{error || "Course not found."}</p>
         <Link to={`/courses/${courseId}`} className="rounded-full bg-damiun-primary px-6 py-2.5 text-sm font-semibold text-white">
           View Course
         </Link>
@@ -42,15 +112,36 @@ export function LessonViewerPage() {
     );
   }
 
+  if (!lesson) {
+    return <div className="flex h-full items-center justify-center text-gray-400">Lesson not found.</div>;
+  }
+
   const ytId = getYouTubeId(lesson.resourceUrl);
   const completedCount = allLessons.filter((l) => completed.has(l.id)).length;
   const progressPct = allLessons.length > 0 ? completedCount / allLessons.length : 0;
 
+  const handleMarkComplete = async () => {
+    const token = getToken();
+    if (!token || !courseId || !lesson?.id) return;
+    setMarking(true);
+    try {
+      const res = await enrollmentApi.completeLesson(
+        { course_id: courseId, lesson_id: lesson.id },
+        { token },
+      );
+      const next = new Set((res.completed_lesson_ids ?? []).map(String));
+      setCompleted(next);
+      toast.success("Progress saved");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save progress");
+    } finally {
+      setMarking(false);
+    }
+  };
+
   return (
     <div className="flex h-full overflow-hidden">
-      {/* ── Left sidebar: course + lesson list ── */}
       <aside className="relative flex w-[260px] flex-shrink-0 flex-col overflow-y-auto border-r border-gray-100 bg-white">
-        {/* orange progress bar along left edge */}
         <div className="absolute left-0 top-0 w-1 rounded-r-full bg-gray-100" style={{ height: "100%" }}>
           <div
             className="w-full rounded-r-full bg-orange-400 transition-all duration-500"
@@ -58,18 +149,15 @@ export function LessonViewerPage() {
           />
         </div>
 
-        {/* Course thumbnail */}
         <div className="overflow-hidden">
           <img src={course.coverImage} alt={course.title} className="h-40 w-full object-cover" />
         </div>
 
-        {/* Course meta */}
         <div className="px-5 py-4">
           <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Course</p>
           <p className="mt-1 text-sm font-bold leading-snug text-gray-900">{course.title}</p>
         </div>
 
-        {/* Module + lesson list */}
         <div className="flex flex-col gap-5 px-4 pb-6">
           {course.modules.map((mod) => (
             <div key={mod.id}>
@@ -81,11 +169,10 @@ export function LessonViewerPage() {
                   return (
                     <li key={l.id}>
                       <button
+                        type="button"
                         onClick={() => navigate(`/learn/${courseId}/${l.id}`)}
                         className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left text-xs font-medium transition ${
-                          isActive
-                            ? "bg-damiun-primary text-white"
-                            : "text-gray-600 hover:bg-gray-50"
+                          isActive ? "bg-damiun-primary text-white" : "text-gray-600 hover:bg-gray-50"
                         }`}
                       >
                         <span className="line-clamp-1 flex-1">{l.title}</span>
@@ -102,9 +189,7 @@ export function LessonViewerPage() {
         </div>
       </aside>
 
-      {/* ── Right: video + controls ── */}
       <div className="flex flex-1 flex-col overflow-hidden bg-[#f5f6fa]">
-        {/* Video player */}
         <div className="flex-1 overflow-hidden bg-gray-900">
           {ytId ? (
             <iframe
@@ -130,7 +215,6 @@ export function LessonViewerPage() {
           )}
         </div>
 
-        {/* Bottom bar */}
         <div className="flex flex-shrink-0 items-center justify-between border-t border-gray-100 bg-white px-8 py-5">
           <div>
             <p className="text-xl font-bold text-gray-900">{lesson.title}</p>
@@ -140,10 +224,12 @@ export function LessonViewerPage() {
           <div className="flex items-center gap-3">
             {!completed.has(lesson.id) && (
               <button
-                onClick={() => completeLesson(courseId, lesson.id)}
-                className="rounded-full border border-damiun-primary px-5 py-2.5 text-sm font-semibold text-damiun-primary transition hover:bg-damiun-nav-tint"
+                type="button"
+                onClick={handleMarkComplete}
+                disabled={marking}
+                className="rounded-full border border-damiun-primary px-5 py-2.5 text-sm font-semibold text-damiun-primary transition hover:bg-damiun-nav-tint disabled:opacity-50"
               >
-                Mark Complete
+                {marking ? "Saving…" : "Mark Complete"}
               </button>
             )}
             {nextLesson ? (

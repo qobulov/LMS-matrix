@@ -1,32 +1,86 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import { toast } from "sonner";
+import { quizApi } from "../api/endpoints";
 import { useLms } from "../data/LmsContext";
 import { formatDate } from "../utils/format";
 
+function mapQuizPayload(data) {
+  const q = data?.quiz;
+  if (!q) return { quiz: null, attempts: [] };
+  const quiz = {
+    id: String(q.id),
+    title: q.title ?? "Quiz",
+    timeLimitMin: q.time_limit_min ?? 30,
+    passThreshold: q.pass_threshold ?? 70,
+    maxAttempts: q.max_attempts ?? 3,
+    questions: (q.questions ?? []).map((qu) => ({
+      id: String(qu.id),
+      prompt: qu.prompt ?? "",
+      questionType: qu.question_type,
+      options: (qu.options ?? []).map((o) => ({
+        id: String(o.id),
+        label: o.option_text ?? o.label ?? "",
+      })),
+    })),
+  };
+  const attempts = (data?.attempts ?? []).map((a) => ({
+    score: a.score,
+    submittedAt: a.submitted_at ?? a.submittedAt,
+  }));
+  return { quiz, attempts };
+}
+
 export function QuizPage() {
   const { courseId } = useParams();
-  const { courses, submitQuiz, enrollmentByCourseId } = useLms();
+  const { getToken } = useLms();
+  const [quiz, setQuiz] = useState(null);
+  const [attemptHistory, setAttemptHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [answers, setAnswers] = useState({});
   const [result, setResult] = useState(null);
+  const [passed, setPassed] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
 
-  const course = useMemo(
-    () => courses.find((item) => item.id === courseId),
-    [courses, courseId],
-  );
+  const load = useCallback(async () => {
+    const token = getToken();
+    if (!courseId || !token) {
+      throw new Error("Sign in required");
+    }
+    const data = await quizApi.get(courseId, { token });
+    const { quiz: q, attempts } = mapQuizPayload(data);
+    setQuiz(q);
+    setAttemptHistory(attempts);
+  }, [courseId, getToken]);
 
-  const enrollment = course ? enrollmentByCourseId[course.id] : undefined;
-  const quiz = course?.finalQuiz || null;
-
-  const attemptHistory = useMemo(() => {
-    if (!enrollment?.attempts?.length) return [];
-    return [...enrollment.attempts].reverse();
-  }, [enrollment]);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        await load();
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load quiz");
+          setQuiz(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [load]);
 
   useEffect(() => {
     setAnswers({});
     setResult(null);
+    setPassed(false);
     setTimeLeft((quiz?.timeLimitMin || 30) * 60);
   }, [quiz?.id, quiz?.timeLimitMin]);
 
@@ -40,10 +94,18 @@ export function QuizPage() {
     return () => clearInterval(timer);
   }, [quiz, result, timeLeft]);
 
-  if (!course || !quiz) {
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-2xl rounded-2xl bg-white p-8 text-center text-sm text-gray-500 shadow-sm ring-1 ring-gray-100">
+        Loading…
+      </div>
+    );
+  }
+
+  if (error || !quiz) {
     return (
       <div className="mx-auto max-w-2xl rounded-2xl bg-white p-8 shadow-sm ring-1 ring-gray-100">
-        <p className="text-damiun-body">Course topilmadi.</p>
+        <p className="text-damiun-body">{error || "Quiz topilmadi."}</p>
       </div>
     );
   }
@@ -57,30 +119,52 @@ export function QuizPage() {
     );
   }
 
-  const evaluateResult = () => {
-    let correctCount = 0;
-
-    quiz.questions.forEach((question) => {
-      const answer = Number(answers[question.id]);
-      if (question.correctOptionIndexes.includes(answer)) {
-        correctCount += 1;
-      }
-    });
-
-    const score = Math.round((correctCount / quiz.questions.length) * 100);
-    submitQuiz(course.id, score);
-    setResult(score);
-  };
-
-  const onSubmit = (event) => {
+  const onSubmit = async (event) => {
     event.preventDefault();
-    if (timeLeft <= 0) return;
-    evaluateResult();
+    if (timeLeft <= 0 || result !== null) return;
+    const token = getToken();
+    if (!token) return;
+
+    const missing = quiz.questions.some((q) => !answers[q.id]);
+    if (missing) {
+      toast.error("Barcha savollarga javob bering");
+      return;
+    }
+
+    const answersPayload = quiz.questions.map((q) => ({
+      question_id: q.id,
+      selected_option_ids: [answers[q.id]],
+    }));
+
+    setSubmitting(true);
+    try {
+      const spent = (quiz.timeLimitMin || 30) * 60 - timeLeft;
+      const res = await quizApi.submitAttempt(
+        {
+          course_id: courseId,
+          quiz_id: quiz.id,
+          answers: answersPayload,
+          time_spent_sec: Math.max(0, spent),
+        },
+        { token },
+      );
+      setResult(res.score ?? 0);
+      setPassed(Boolean(res.passed));
+      setAttemptHistory((prev) => [
+        { score: res.score, submittedAt: new Date().toISOString() },
+        ...prev,
+      ]);
+      toast.success(res.passed ? "Tabriklaymiz!" : "Natija saqlandi");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Yuborishda xato");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const mm = String(Math.floor(timeLeft / 60)).padStart(2, "0");
   const ss = String(timeLeft % 60).padStart(2, "0");
-  const passed = result !== null && result >= quiz.passThreshold;
+  const passedUi = result !== null && (passed || result >= quiz.passThreshold);
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 pb-10">
@@ -133,21 +217,19 @@ export function QuizPage() {
               {index + 1}. {question.prompt}
             </h2>
             <div className="mt-4 flex flex-col gap-2">
-              {question.options.map((option, optionIndex) => (
+              {question.options.map((option) => (
                 <label
-                  key={option}
+                  key={option.id}
                   className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-100 px-3 py-2.5 text-sm transition hover:border-damiun-primary/40 hover:bg-damiun-nav-tint/50"
                 >
                   <input
                     type="radio"
                     name={question.id}
                     className="mt-1 text-damiun-primary focus:ring-damiun-primary"
-                    checked={Number(answers[question.id]) === optionIndex}
-                    onChange={() =>
-                      setAnswers((prev) => ({ ...prev, [question.id]: optionIndex }))
-                    }
+                    checked={answers[question.id] === option.id}
+                    onChange={() => setAnswers((prev) => ({ ...prev, [question.id]: option.id }))}
                   />
-                  <span className="text-damiun-body">{option}</span>
+                  <span className="text-damiun-body">{option.label}</span>
                 </label>
               ))}
             </div>
@@ -157,9 +239,9 @@ export function QuizPage() {
         <button
           className="rounded-full bg-damiun-primary px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-damiun-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
           type="submit"
-          disabled={result !== null || timeLeft <= 0}
+          disabled={result !== null || timeLeft <= 0 || submitting}
         >
-          Submit quiz
+          {submitting ? "Submitting…" : "Submit quiz"}
         </button>
       </form>
 
@@ -172,16 +254,16 @@ export function QuizPage() {
       {result !== null ? (
         <div
           className={`rounded-2xl border-2 p-8 text-center ${
-            passed
+            passedUi
               ? "border-emerald-300 bg-emerald-50/90 text-emerald-950"
               : "border-amber-300 bg-amber-50/90 text-amber-950"
           }`}
         >
           <p className="text-xs font-bold uppercase tracking-widest opacity-80">Quiz result</p>
           <p className="mt-3 text-5xl font-black tabular-nums">{result}%</p>
-          <p className="mt-2 text-lg font-bold">{passed ? "Passed" : "Not passed"}</p>
+          <p className="mt-2 text-lg font-bold">{passedUi ? "Passed" : "Not passed"}</p>
           <p className="mt-2 text-sm opacity-90">
-            Pass threshold: {quiz.passThreshold}% · {passed ? "Great work." : "Review lessons and try again."}
+            Pass threshold: {quiz.passThreshold}% · {passedUi ? "Great work." : "Review lessons and try again."}
           </p>
         </div>
       ) : null}

@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import bannerImage from "../assets/images/Banner.png";
-import { useLms } from "../data/LmsContext";
+import { courseApi, homeApi } from "../api/endpoints";
+import { mapCourseListItem, mapInstructorHome } from "../utils/gatewayMappers";
 
-/* ── Donut chart ─────────────────────────────────────── */
+/* ── Donut chart (decorative) ─────────────────────────── */
 const RINGS = [
   { r: 84, sw: 12, color: "#22c55e", label: "UI/UX Design", pct: 78 },
   { r: 63, sw: 12, color: "#a855f7", label: "HTML", pct: 62 },
@@ -41,38 +42,85 @@ function DonutRings() {
 }
 
 function totalLessons(course) {
-  return course.modules.reduce((sum, m) => sum + m.lessons.length, 0);
+  if (course.lessonCount != null) return course.lessonCount;
+  if (!course.modules?.length) return 0;
+  return course.modules.reduce((sum, m) => sum + (m.lessons?.length ?? 0), 0);
 }
 
-/* ── Page ────────────────────────────────────────────── */
 export function HomePage() {
-  const { featuredCourses, courses, categories: catalogCategories, instructors, enrollments } = useLms();
   const [tab, setTab] = useState("progress");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [featuredCourses, setFeaturedCourses] = useState([]);
+  const [catalogCourses, setCatalogCourses] = useState([]);
+  const [catalogTotal, setCatalogTotal] = useState(0);
+  const [categoryList, setCategoryList] = useState([]);
+  const [topInstructors, setTopInstructors] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [home, catalog] = await Promise.all([
+          homeApi.getData(),
+          courseApi.getCatalog({ page: 1, page_size: 24, sort: "rating" }),
+        ]);
+        if (cancelled) return;
+        const feat = (home.featured_courses ?? [])
+          .map(mapCourseListItem)
+          .filter(Boolean);
+        const cats = home.categories ?? [];
+        const inst = (home.top_instructors ?? []).map(mapInstructorHome).filter(Boolean);
+        setFeaturedCourses(feat);
+        setCategoryList(Array.isArray(cats) ? cats.map((c) => (typeof c === "string" ? c : c.name ?? c.title ?? "")).filter(Boolean) : []);
+        setTopInstructors(inst);
+        setCatalogCourses((catalog.courses ?? []).map(mapCourseListItem).filter(Boolean));
+        setCatalogTotal(Number(catalog.total ?? 0));
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load home");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const categoryChips = useMemo(() => {
-    const fromCourses = new Set(courses.map((c) => c.category).filter(Boolean));
-    const merged = new Set([...catalogCategories, ...fromCourses]);
+    const fromCourses = new Set(catalogCourses.map((c) => c.category).filter(Boolean));
+    const merged = new Set([...categoryList, ...fromCourses]);
     return Array.from(merged).sort((a, b) => a.localeCompare(b));
-  }, [courses, catalogCategories]);
+  }, [catalogCourses, categoryList]);
 
-  const topInstructors = useMemo(() => {
-    return [...instructors]
-      .map((inst) => {
-        const own = courses.filter((c) => c.instructorId === inst.id);
-        const studentTotal = enrollments.filter((e) => own.some((c) => c.id === e.courseId)).length;
-        return {
-          ...inst,
-          courseCount: own.length,
-          studentTotal,
-        };
-      })
-      .sort((a, b) => (b.rating || 0) - (a.rating || 0))
-      .slice(0, 4);
-  }, [instructors, courses, enrollments]);
+  const allCoursesForGrid = useMemo(() => {
+    const ids = new Set(featuredCourses.map((c) => c.id));
+    const rest = catalogCourses.filter((c) => !ids.has(c.id));
+    return [...featuredCourses, ...rest];
+  }, [featuredCourses, catalogCourses]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-sm text-gray-500">
+        Loading…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-2xl border border-red-100 bg-red-50/80 p-6 text-sm text-red-800">
+        {error}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8">
-      {/* Overview banner — Figma export 985×320 */}
       <Link
         to="/catalog"
         className="mx-auto block w-full  overflow-hidden   transition hover:opacity-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-damiun-primary"
@@ -89,10 +137,9 @@ export function HomePage() {
         />
       </Link>
 
-      {/* README: categories */}
       <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100 sm:p-6">
         <h2 className="text-lg font-bold text-damiun-wordmark">Browse by category</h2>
-        <p className="mt-1 text-sm text-damiun-muted">Jump into the catalog with one tap (README).</p>
+        <p className="mt-1 text-sm text-damiun-muted">Jump into the catalog with one tap.</p>
         <div className="mt-4 flex flex-wrap gap-2">
           {categoryChips.map((cat) => (
             <Link
@@ -106,7 +153,6 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* README: top instructors */}
       <section>
         <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -133,11 +179,13 @@ export function HomePage() {
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold text-damiun-wordmark">{inst.fullName}</p>
-                  <p className="text-xs text-damiun-muted">{inst.courseCount} courses · {inst.studentTotal} students</p>
+                  <p className="text-xs text-damiun-muted">
+                    {inst.courseCount} courses · {inst.studentTotal} students
+                  </p>
                 </div>
               </div>
               {inst.rating != null && (
-                <p className="text-sm font-semibold text-amber-600">Rating {inst.rating.toFixed(1)}</p>
+                <p className="text-sm font-semibold text-amber-600">Rating {Number(inst.rating).toFixed(1)}</p>
               )}
               <p className="line-clamp-2 text-xs text-damiun-body">{inst.bio}</p>
             </article>
@@ -145,7 +193,6 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* ── Tabs: progress + all courses (README: featured + full catalog grid) ── */}
       <div className="flex flex-wrap gap-3">
         {[
           ["progress", "Learning Progress"],
@@ -185,10 +232,10 @@ export function HomePage() {
       ) : (
         <div>
           <p className="mb-4 text-sm text-damiun-muted">
-            Featured picks first, then the rest of the catalog ({courses.length} courses).
+            Featured picks first, then more from the catalog ({catalogTotal} published).
           </p>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {[...featuredCourses, ...courses.filter((c) => !featuredCourses.some((f) => f.id === c.id))].map((course) => (
+            {allCoursesForGrid.map((course) => (
               <Link
                 key={course.id}
                 to={`/courses/${course.id}`}

@@ -25,7 +25,15 @@ import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
 import { RewardsPage } from "./pages/RewardsPage";
 
 function App() {
-  const { isAuthenticated } = useLms();
+  const { isAuthenticated, authReady } = useLms();
+
+  if (!authReady) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-damiun-surface-app text-sm text-gray-500">
+        Loading…
+      </div>
+    );
+  }
 
   return (
     <Routes>

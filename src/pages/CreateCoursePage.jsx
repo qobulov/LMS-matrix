@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { courseApi } from "../api/endpoints";
+import { categories } from "../data/mockData";
 import { useLms } from "../data/LmsContext";
 
 const initialForm = {
@@ -17,19 +20,48 @@ const initialForm = {
 };
 
 export function CreateCoursePage() {
-  const { categories, createCourse } = useLms();
+  const { getToken } = useLms();
   const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
+  const [saving, setSaving] = useState(false);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const onSubmit = (event) => {
+  const onSubmit = async (event) => {
     event.preventDefault();
-    createCourse(form);
-    navigate("/instructor");
+    const token = getToken();
+    if (!token) {
+      toast.error("Sign in required");
+      return;
+    }
+    setSaving(true);
+    try {
+      await courseApi.create(
+        {
+          title: form.title,
+          description: form.description,
+          cover_image: form.coverImage,
+          category: form.category,
+          difficulty: form.difficulty,
+          language: form.language,
+          price: Number(form.price || 0),
+          duration_hours: Number(form.durationHours || 1),
+          status: form.status,
+          what_you_will_learn: form.whatYouWillLearn.split("\n").map((s) => s.trim()).filter(Boolean),
+          requirements: form.requirements.split("\n").map((s) => s.trim()).filter(Boolean),
+        },
+        { token },
+      );
+      toast.success("Course created");
+      navigate("/instructor");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -97,7 +129,7 @@ export function CreateCoursePage() {
         </label>
 
         <label className="full-row">
-          What you'll learn (one line each)
+          What you&apos;ll learn (one line each)
           <textarea
             name="whatYouWillLearn"
             value={form.whatYouWillLearn}
@@ -124,8 +156,8 @@ export function CreateCoursePage() {
           </select>
         </label>
 
-        <button className="btn btn-primary" type="submit">
-          Save Course
+        <button className="btn btn-primary" type="submit" disabled={saving}>
+          {saving ? "Saving…" : "Save Course"}
         </button>
       </form>
     </section>

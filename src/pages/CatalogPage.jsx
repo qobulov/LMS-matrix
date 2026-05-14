@@ -1,15 +1,19 @@
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Search } from "lucide-react";
+import { courseApi, enrollmentApi } from "../api/endpoints";
 import { CatalogGridSkeleton } from "../components/ui/skeleton";
 import { useLms } from "../data/LmsContext";
+import { mapCourseListItem } from "../utils/gatewayMappers";
 
 const PAGE_SIZE = 8;
 
 const DIFFICULTIES = ["beginner", "intermediate", "advanced"];
 
 function totalLessons(course) {
-  return course.modules.reduce((sum, m) => sum + m.lessons.length, 0);
+  if (course.lessonCount != null) return course.lessonCount;
+  if (!course.modules?.length) return 0;
+  return course.modules.reduce((sum, m) => sum + (m.lessons?.length ?? 0), 0);
 }
 
 function CourseCard({ course }) {
@@ -39,7 +43,7 @@ function CourseCard({ course }) {
         <div className="flex items-center justify-between text-xs text-gray-400">
           <span>{count > 0 ? `${count} lessons` : `${course.durationHours}h total`}</span>
           {course.rating != null && (
-            <span className="font-semibold text-amber-600">★ {course.rating}</span>
+            <span className="font-semibold text-amber-600">★ {Number(course.rating).toFixed(1)}</span>
           )}
         </div>
       </div>
@@ -48,7 +52,7 @@ function CourseCard({ course }) {
 }
 
 export function CatalogPage() {
-  const { courses, myEnrollments } = useLms();
+  const { getToken } = useLms();
   const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState("all");
   const [page, setPage] = useState(1);
@@ -56,28 +60,16 @@ export function CatalogPage() {
   const [difficulty, setDifficulty] = useState("all");
   const [sort, setSort] = useState("rating");
   const [isPending, startTransition] = useTransition();
-
-  const enrolledCourseIds = useMemo(
-    () => new Set(myEnrollments.map((e) => e.courseId)),
-    [myEnrollments],
-  );
-
-  const myCourses = useMemo(
-    () => courses.filter((c) => enrolledCourseIds.has(c.id)),
-    [courses, enrolledCourseIds],
-  );
-
-  const categories = useMemo(() => {
-    const set = new Set(courses.map((c) => c.category).filter(Boolean));
-    return ["all", ...Array.from(set).sort()];
-  }, [courses]);
+  const [courses, setCourses] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const category = useMemo(() => {
     const raw = searchParams.get("category");
     if (!raw) return "all";
-    const decoded = decodeURIComponent(raw);
-    return courses.some((c) => c.category === decoded) ? decoded : "all";
-  }, [searchParams, courses]);
+    return decodeURIComponent(raw);
+  }, [searchParams]);
 
   const setCategory = (next) => {
     startTransition(() => {
@@ -91,30 +83,85 @@ export function CatalogPage() {
     });
   };
 
-  const filtered = useMemo(() => {
-    const base = tab === "all" ? courses : myCourses;
-    let list = base.filter((c) => {
+  const fetchData = useCallback(async () => {
+    setError(null);
+    const token = getToken();
+
+    if (tab === "my") {
+      if (!token) {
+        setCourses([]);
+        setTotal(0);
+        return;
+      }
+      const data = await enrollmentApi.myCourses({ token });
+      const raw = (data.enrollments ?? []).map((e) => e.course).filter(Boolean);
+      let list = raw.map(mapCourseListItem).filter(Boolean);
       const q = searchQuery.trim().toLowerCase();
-      if (q && !c.title.toLowerCase().includes(q)) return false;
-      if (category !== "all" && c.category !== category) return false;
-      if (difficulty !== "all" && c.difficulty !== difficulty) return false;
-      return true;
-    });
-    list = [...list];
-    if (sort === "title") {
-      list.sort((a, b) => a.title.localeCompare(b.title));
-    } else if (sort === "newest") {
-      list.reverse();
-    } else {
-      list.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      if (q) list = list.filter((c) => c.title.toLowerCase().includes(q));
+      if (category !== "all") list = list.filter((c) => c.category === category);
+      if (difficulty !== "all") list = list.filter((c) => c.difficulty === difficulty);
+      list = [...list];
+      if (sort === "title") list.sort((a, b) => a.title.localeCompare(b.title));
+      else if (sort === "newest") list.reverse();
+      else list.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      setCourses(list);
+      setTotal(list.length);
+      return;
     }
-    return list;
-  }, [courses, myCourses, tab, searchQuery, category, difficulty, sort]);
 
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    const filters = {
+      page,
+      page_size: PAGE_SIZE,
+      sort,
+      search: searchQuery.trim() || undefined,
+      category: category !== "all" ? category : undefined,
+      difficulty: difficulty !== "all" ? difficulty : undefined,
+    };
+    const data = await courseApi.getCatalog(filters, {});
+    const list = (data.courses ?? []).map(mapCourseListItem).filter(Boolean);
+    setCourses(list);
+    setTotal(Number(data.total ?? list.length));
+  }, [getToken, tab, page, sort, searchQuery, category, difficulty]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    const t = setTimeout(
+      () => {
+        void (async () => {
+          try {
+            if (cancelled) return;
+            await fetchData();
+          } catch (err) {
+            if (!cancelled) {
+              setError(err instanceof Error ? err.message : "Failed to load catalog");
+              setCourses([]);
+              setTotal(0);
+            }
+          } finally {
+            if (!cancelled) setLoading(false);
+          }
+        })();
+      },
+      searchQuery.trim() ? 350 : 0,
+    );
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [fetchData, searchQuery]);
+
+  const categories = useMemo(() => {
+    const set = new Set(["all", ...courses.map((c) => c.category).filter(Boolean)]);
+    if (category !== "all") set.add(category);
+    const rest = Array.from(set).filter((c) => c !== "all").sort((a, b) => a.localeCompare(b));
+    return ["all", ...rest];
+  }, [courses, category]);
+
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
-  const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const paged =
+    tab === "my" ? courses.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE) : courses;
 
   const handleTab = (next) => {
     startTransition(() => {
@@ -123,16 +170,20 @@ export function CatalogPage() {
     });
   };
 
-  const showSkeleton = isPending;
+  const showSkeleton = isPending || loading;
 
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold text-damiun-wordmark">Course catalog</h1>
         <p className="mt-1 text-sm text-damiun-muted">
-          Search, filter by category and level, sort by rating or title (README §Courses).
+          Search, filter by category and level, sort by rating or title.
         </p>
       </div>
+
+      {error && (
+        <div className="rounded-xl border border-red-100 bg-red-50/80 px-4 py-3 text-sm text-red-800">{error}</div>
+      )}
 
       <div className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100 sm:p-5">
         <div className="relative">
@@ -255,7 +306,26 @@ export function CatalogPage() {
         </div>
       )}
 
-      {!showSkeleton && pageCount > 1 && (
+      {!showSkeleton && tab === "all" && pageCount > 1 && (
+        <div className="flex items-center gap-2">
+          {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => startTransition(() => setPage(n))}
+              className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition ${
+                n === safePage
+                  ? "bg-damiun-primary text-white shadow-sm"
+                  : "bg-white text-gray-500 shadow-sm ring-1 ring-gray-100 hover:text-gray-800"
+              }`}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!showSkeleton && tab === "my" && pageCount > 1 && (
         <div className="flex items-center gap-2">
           {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
             <button

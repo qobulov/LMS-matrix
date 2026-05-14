@@ -1,23 +1,43 @@
+import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { authApi } from "../../api/endpoints";
 import TravelConnectSignIn from "../../components/ui/travel-connect-signin-1";
 import { useLms } from "../../data/LmsContext";
 
+function normalizeLoginPayload({ email, password }) {
+  return {
+    email: String(email ?? "").trim().toLowerCase(),
+    password: String(password ?? ""),
+  };
+}
+
 export function LoginPage() {
-  const { login } = useLms();
+  const { applyGatewayAuth } = useLms();
   const navigate = useNavigate();
 
-  const onSubmit = async ({ email, password }) => {
-    const result = await login({ email, password });
+  const onSubmit = useCallback(
+    async (values) => {
+      const payload = normalizeLoginPayload(values);
 
-    if (!result.ok) {
-      toast.error(result.error ?? "Email or password is incorrect");
-      return;
-    }
+      if (!payload.email || !payload.password) {
+        toast.error("Email va parolni kiriting");
+        return;
+      }
 
-    toast.success(`Welcome back, ${result.user.fullName}!`);
-    navigate("/", { replace: true });
-  };
+      try {
+        const data = await authApi.login(payload);
+        const user = applyGatewayAuth(data);
+        toast.success(`Welcome back, ${user.fullName}!`);
+        navigate("/", { replace: true });
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Email yoki parol noto'g'ri";
+        toast.error(message);
+      }
+    },
+    [applyGatewayAuth, navigate],
+  );
 
   return (
     <TravelConnectSignIn

@@ -1,36 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Award, Gift, Search, Star } from "lucide-react";
 import { toast } from "sonner";
+import { profileApi } from "../api/endpoints";
 import { useLms } from "../data/LmsContext";
 import { formatDate } from "../utils/format";
-
-const rewards = [
-  {
-    id: "reward-1",
-    title: "Perfect Score",
-    description: "Score 100% on any quiz",
-    icon: Star,
-    claimed: false,
-    points: 50,
-  },
-  {
-    id: "reward-2",
-    title: "Fast Learner",
-    description: "Complete a course in under 2 weeks",
-    icon: Award,
-    claimed: true,
-    points: 100,
-  },
-  {
-    id: "reward-3",
-    title: "Course Master",
-    description: "Complete 5 courses",
-    icon: Gift,
-    claimed: false,
-    points: 200,
-  },
-];
 
 function matchesSearch(cert, q) {
   const s = q.trim().toLowerCase();
@@ -39,7 +13,6 @@ function matchesSearch(cert, q) {
   return hay.includes(s);
 }
 
-/** Figma: small certificate preview (blue / white / orange accent) */
 function CertificateThumb({ coverImage }) {
   return (
     <div className="relative h-[72px] w-[56px] shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 shadow-sm">
@@ -63,78 +36,71 @@ function CertificateThumb({ coverImage }) {
 }
 
 export function RewardsPage() {
-  const { myEnrollments, courses, enrollments, users, role, currentUser } = useLms();
-  /** Figma: "Rewards" | "Certificate" — internal keys `rewards` | `certificate` */
+  const { getToken, role, currentUser } = useLms();
   const [activeTab, setActiveTab] = useState("certificate");
   const [certSearch, setCertSearch] = useState("");
   const [rewardSearch, setRewardSearch] = useState("");
+  const [apiCerts, setApiCerts] = useState([]);
+  const [apiRewards, setApiRewards] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const token = getToken();
+    if (!token) {
+      setApiCerts([]);
+      setApiRewards([]);
+      setLoading(false);
+      return;
+    }
+    void (async () => {
+      setLoading(true);
+      try {
+        const data = await profileApi.getMyRewards({ token });
+        if (cancelled) return;
+        const certs = (data.certificates ?? []).map((c) => ({
+          id: c.certificate_uid ?? c.id,
+          issuedAt: c.issued_at,
+          courseTitle: c.course?.title ?? "—",
+          coverImage: c.course?.cover_image,
+          studentName: c.student_name ?? currentUser?.fullName,
+        }));
+        setApiCerts(certs);
+        setApiRewards(data.rewards ?? []);
+      } catch {
+        if (!cancelled) {
+          setApiCerts([]);
+          setApiRewards([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [getToken, currentUser?.fullName]);
 
   const certificates = useMemo(() => {
-    const q = certSearch;
+    return apiCerts.filter((cert) => matchesSearch(cert, certSearch));
+  }, [apiCerts, certSearch]);
 
-    if (role === "student") {
-      return myEnrollments
-        .filter((item) => item.certificate)
-        .map((item) => {
-          const course = courses.find((courseItem) => courseItem.id === item.courseId);
-          return {
-            ...item.certificate,
-            courseTitle: course?.title || "Unknown",
-            courseId: item.courseId,
-            coverImage: course?.coverImage,
-            studentName: currentUser?.fullName,
-            viewerScope: "mine",
-          };
-        })
-        .filter((cert) => matchesSearch(cert, q));
-    }
-
-    const myCourseIds = new Set(
-      courses.filter((c) => c.instructorId === currentUser?.id).map((c) => c.id),
-    );
-
-    const source =
-      role === "instructor"
-        ? enrollments.filter((e) => e.certificate && myCourseIds.has(e.courseId))
-        : enrollments.filter((e) => e.certificate);
-
-    return source
-      .map((item) => {
-        const course = courses.find((c) => c.id === item.courseId);
-        const student = users.find((u) => u.id === item.userId);
-        return {
-          ...item.certificate,
-          courseTitle: course?.title || "Unknown",
-          courseId: item.courseId,
-          coverImage: course?.coverImage,
-          studentName: student?.fullName || "—",
-          viewerScope: role === "instructor" ? "instructor" : "admin",
-        };
-      })
-      .filter((cert) => matchesSearch(cert, q));
-  }, [myEnrollments, courses, enrollments, users, role, currentUser, certSearch]);
-
-  const filteredRewards = rewards.filter((reward) =>
-    reward.title.toLowerCase().includes(rewardSearch.toLowerCase()),
-  );
+  const filteredRewards = useMemo(() => {
+    const q = rewardSearch.toLowerCase();
+    return apiRewards.filter((r) => (r.title ?? "").toLowerCase().includes(q));
+  }, [apiRewards, rewardSearch]);
 
   const emptyCertsMessage = (() => {
     if (certSearch.trim()) return "No certificates match your search.";
-    if (role === "student") {
-      return (
-        <>
-          You don&apos;t have any certificates yet.{" "}
-          <Link to="/catalog" className="font-semibold text-damiun-primary hover:underline">
-            Enroll and complete a course
-          </Link>{" "}
-          to earn one.
-        </>
-      );
-    }
-    if (role === "instructor") {
-      return "No certificates have been issued for your courses yet.";
-    }
-    return "No certificates in the demo data.";
+    return (
+      <>
+        You don&apos;t have any certificates yet.{" "}
+        <Link to="/catalog" className="font-semibold text-damiun-primary hover:underline">
+          Enroll and complete a course
+        </Link>{" "}
+        to earn one.
+      </>
+    );
   })();
 
   const tabClass = (isActive) =>
@@ -144,14 +110,17 @@ export function RewardsPage() {
         : "bg-white text-gray-500 shadow-sm ring-1 ring-gray-200 hover:text-damiun-wordmark"
     }`;
 
+  if (loading) {
+    return <div className="py-12 text-center text-sm text-gray-500">Loading…</div>;
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold text-damiun-wordmark">Rewards</h1>
-        <p className="mt-1 text-sm text-damiun-muted">Certificates and gamified milestones (demo rewards).</p>
+        <p className="mt-1 text-sm text-damiun-muted">Certificates and milestones from the platform.</p>
       </div>
 
-      {/* Figma: Rewards (inactive) first, Certificate (active) second */}
       <div className="flex flex-wrap gap-3">
         <button
           type="button"
@@ -206,9 +175,6 @@ export function RewardsPage() {
                     <p className="mt-0.5 truncate text-xs text-damiun-muted" title={certificate.courseTitle}>
                       {certificate.courseTitle}
                     </p>
-                    {certificate.viewerScope !== "mine" && certificate.studentName && (
-                      <p className="truncate text-xs text-damiun-muted">{certificate.studentName}</p>
-                    )}
                     <p className="mt-1 font-mono text-[10px] text-gray-400">{certificate.id}</p>
                     <p className="text-[10px] text-gray-400">{formatDate(certificate.issuedAt)}</p>
                   </div>
@@ -244,37 +210,40 @@ export function RewardsPage() {
             />
           </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredRewards.map((reward) => (
-              <article
-                key={reward.id}
-                className="flex flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <reward.icon className="h-8 w-8 shrink-0 text-damiun-primary" />
-                    <h3 className="text-lg font-semibold text-damiun-wordmark">{reward.title}</h3>
-                  </div>
-                  <span className="text-lg font-bold text-damiun-primary">{reward.points} pts</span>
-                </div>
-                <p className="mt-3 flex-1 text-sm text-damiun-body">{reward.description}</p>
-                <button
-                  type="button"
-                  disabled={reward.claimed}
-                  onClick={() => {
-                    if (!reward.claimed) {
-                      toast.info(`Reward "${reward.title}" — demo claim only.`);
-                    }
-                  }}
-                  className={`mt-5 w-full rounded-full py-2.5 text-sm font-semibold transition ${
-                    reward.claimed
-                      ? "cursor-not-allowed bg-gray-100 text-damiun-muted"
-                      : "bg-damiun-primary text-white shadow-sm hover:bg-damiun-primary-hover"
-                  }`}
-                >
-                  {reward.claimed ? "Claimed" : "Claim"}
-                </button>
-              </article>
-            ))}
+            {filteredRewards.length === 0 ? (
+              <p className="text-sm text-damiun-muted">No rewards data.</p>
+            ) : (
+              filteredRewards.map((reward) => {
+                const Icon = reward.unlocked ? Star : Gift;
+                return (
+                  <article
+                    key={reward.id}
+                    className="flex flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <Icon className="h-8 w-8 shrink-0 text-damiun-primary" />
+                        <h3 className="text-lg font-semibold text-damiun-wordmark">{reward.title}</h3>
+                      </div>
+                      <span className="text-lg font-bold text-damiun-primary">{reward.points ?? 0} pts</span>
+                    </div>
+                    <p className="mt-3 flex-1 text-sm text-damiun-body">{reward.description}</p>
+                    <button
+                      type="button"
+                      disabled={!reward.unlocked}
+                      onClick={() => toast.info(`Reward "${reward.title}" — ${reward.unlocked ? "available" : "locked"}.`)}
+                      className={`mt-5 w-full rounded-full py-2.5 text-sm font-semibold transition ${
+                        reward.unlocked
+                          ? "bg-damiun-primary text-white shadow-sm hover:bg-damiun-primary-hover"
+                          : "cursor-not-allowed bg-gray-100 text-damiun-muted"
+                      }`}
+                    >
+                      {reward.unlocked ? "View" : "Locked"}
+                    </button>
+                  </article>
+                );
+              })
+            )}
           </div>
         </div>
       )}

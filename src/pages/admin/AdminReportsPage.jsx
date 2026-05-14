@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { payments } from "../../data/mockData";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { adminApi } from "../../api/endpoints";
 import { useLms } from "../../data/LmsContext";
 import { formatDate } from "../../utils/format";
 
@@ -14,110 +14,138 @@ const TABS = [
   { id: "reviews", label: "Reviews" },
 ];
 
-export function AdminReportsPage() {
-  const { reportRows, exportReportCsv, courses, enrollments, students, users } = useLms();
-  const [tab, setTab] = useState("enrollments");
+function defaultRange() {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(start.getDate() - 90);
+  return {
+    period_start: start.toISOString().slice(0, 10),
+    period_end: end.toISOString().slice(0, 10),
+  };
+}
 
-  const revenueRows = useMemo(() => {
-    return payments.map((p) => {
-      const c = courses.find((x) => x.id === p.courseId);
-      return {
-        course: c?.title || p.courseId,
-        amount: p.amount,
-        payout: p.instructorPayout,
-        net: p.amount - p.instructorPayout,
-        date: p.date,
-      };
-    });
-  }, [courses]);
+function humanizeKey(key) {
+  return String(key)
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
-  const totalRevenue = useMemo(() => revenueRows.reduce((s, r) => s + r.amount, 0), [revenueRows]);
-  const freeVsPaid = useMemo(() => {
-    let free = 0;
-    let paid = 0;
-    for (const r of revenueRows) {
-      if (r.amount === 0) free += 1;
-      else paid += 1;
+function escapeCsvCell(value) {
+  const s = value == null ? "" : String(value);
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function rowsToCsv(rows) {
+  if (!rows?.length) return "";
+  const keys = Object.keys(rows[0]);
+  const header = keys.map(escapeCsvCell).join(",");
+  const lines = rows.map((row) => keys.map((k) => escapeCsvCell(row[k])).join(","));
+  return `${header}\n${lines.join("\n")}`;
+}
+
+function downloadCsv(filename, csvText) {
+  if (!csvText) return;
+  const blob = new Blob([csvText], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function formatCell(key, value) {
+  if (value == null || value === "") return "—";
+  const k = key.toLowerCase();
+  if (
+    /(issued_at|submitted_at|date)$/.test(k) ||
+    k === "issued_at" ||
+    k === "submitted_at" ||
+    k === "date"
+  ) {
+    if (typeof value === "string") {
+      try {
+        return formatDate(value);
+      } catch {
+        return value;
+      }
     }
-    return { free, paid };
-  }, [revenueRows]);
+  }
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
 
-  const studentsReport = useMemo(
-    () =>
-      students.map((s) => ({
-        name: s.fullName,
-        email: s.email,
-        enrollments: enrollments.filter((e) => e.userId === s.id).length,
-        completed: enrollments.filter((e) => e.userId === s.id && e.status === "completed").length,
-      })),
-    [students, enrollments],
-  );
+export function AdminReportsPage() {
+  const { getToken } = useLms();
+  const [tab, setTab] = useState("enrollments");
+  const [range, setRange] = useState(() => defaultRange());
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const progressRows = useMemo(
-    () =>
-      courses.map((c) => {
-        const rows = enrollments.filter((e) => e.courseId === c.id);
-        const avgProgress = rows.length
-          ? Math.round(rows.reduce((sum, e) => sum + (e.progress || 0), 0) / rows.length)
-          : 0;
-        const stuck = rows.filter((e) => e.status === "active" && (e.progress || 0) < 25).length;
-        return { course: c.title, avgProgress, stuckLearners: stuck, active: rows.length };
-      }),
-    [courses, enrollments],
-  );
+  const load = useCallback(async () => {
+    const token = getToken();
+    if (!token) throw new Error("Not signed in");
+    return adminApi.getReports(
+      {
+        report_type: tab,
+        period_start: range.period_start,
+        period_end: range.period_end,
+      },
+      { token },
+    );
+  }, [getToken, tab, range.period_start, range.period_end]);
 
-  const quizAttemptRows = useMemo(
-    () =>
-      enrollments.flatMap((e) => {
-        const c = courses.find((x) => x.id === e.courseId);
-        const user = users.find((u) => u.id === e.userId);
-        return (e.attempts || []).map((a, i) => ({
-          id: `${e.id}-${i}`,
-          course: c?.title,
-          user: user?.fullName,
-          score: a.score,
-          date: a.submittedAt,
-        }));
-      }),
-    [enrollments, courses, users],
-  );
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await load();
+        if (!cancelled) setRows(Array.isArray(data?.rows) ? data.rows : []);
+      } catch (e) {
+        if (!cancelled) {
+          setRows([]);
+          setError(e instanceof Error ? e.message : "Failed to load report");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [load]);
 
-  const certRows = useMemo(
-    () =>
-      enrollments
-        .filter((e) => e.certificate)
-        .map((e) => {
-          const c = courses.find((x) => x.id === e.courseId);
-          const user = users.find((u) => u.id === e.userId);
-          return {
-            id: e.certificate.id,
-            course: c?.title,
-            student: user?.fullName,
-            issued: e.certificate.issuedAt,
-          };
-        }),
-    [enrollments, courses, users],
-  );
+  const columns = useMemo(() => {
+    if (!rows.length) return [];
+    return Object.keys(rows[0]);
+  }, [rows]);
 
-  const reviewRows = useMemo(
-    () =>
-      courses.flatMap((c) =>
-        (c.reviews || []).map((r) => ({
-          id: r.id,
-          course: c.title,
-          author: r.author,
-          rating: r.rating,
-          text: r.text,
-          date: r.date,
-        })),
-      ),
-    [courses],
-  );
+  const revenueTotals = useMemo(() => {
+    if (tab !== "revenue" || !rows.length) return null;
+    let total = 0;
+    let netSum = 0;
+    for (const r of rows) {
+      total += Number(r.amount ?? 0) || 0;
+      netSum += Number(r.net ?? 0) || 0;
+    }
+    return { total, netSum };
+  }, [tab, rows]);
 
-  const coursesNoReviews = useMemo(
-    () => courses.filter((c) => !(c.reviews && c.reviews.length)).map((c) => c.title),
-    [courses],
-  );
+  const quizOverview = useMemo(() => {
+    if (tab !== "quiz" || !rows.length) return null;
+    let sum = 0;
+    for (const r of rows) sum += Number(r.score ?? 0) || 0;
+    return { attempts: rows.length, averageScore: Math.round(sum / rows.length) };
+  }, [tab, rows]);
+
+  const exportCurrent = () => {
+    const csv = rowsToCsv(rows);
+    downloadCsv(`report-${tab}.csv`, csv);
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -125,26 +153,45 @@ export function AdminReportsPage() {
         <div>
           <h1 className="text-2xl font-bold text-damiun-wordmark">Reports</h1>
           <p className="mt-1 text-sm text-damiun-muted">
-            README report types with mock aggregates. Date-range filter can wire to backend later.
+            Data from <code className="text-xs">get_reports</code>. Adjust the date range and tab to
+            refresh.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-damiun-wordmark shadow-sm transition hover:border-damiun-primary/40 hover:bg-damiun-nav-tint"
-            onClick={() => exportReportCsv("enrollments")}
+            onClick={exportCurrent}
+            disabled={!rows.length}
           >
-            Export enrollments CSV
-          </button>
-          <button
-            type="button"
-            className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-damiun-wordmark shadow-sm transition hover:border-damiun-primary/40 hover:bg-damiun-nav-tint"
-            onClick={() => exportReportCsv("instructors")}
-          >
-            Export instructors CSV
+            Export current CSV
           </button>
         </div>
       </div>
+
+      <div className="flex flex-wrap items-end gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm ring-1 ring-gray-50">
+        <label className="text-sm font-semibold text-damiun-wordmark">
+          From
+          <input
+            type="date"
+            value={range.period_start}
+            onChange={(e) => setRange((r) => ({ ...r, period_start: e.target.value }))}
+            className="mt-1 block rounded-lg border border-gray-200 px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="text-sm font-semibold text-damiun-wordmark">
+          To
+          <input
+            type="date"
+            value={range.period_end}
+            onChange={(e) => setRange((r) => ({ ...r, period_end: e.target.value }))}
+            className="mt-1 block rounded-lg border border-gray-200 px-3 py-2 text-sm"
+          />
+        </label>
+        {loading ? <span className="pb-2 text-xs text-damiun-muted">Loading…</span> : null}
+      </div>
+
+      {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
       <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-1">
         {TABS.map((t) => (
@@ -163,278 +210,60 @@ export function AdminReportsPage() {
         ))}
       </div>
 
-      {tab === "enrollments" && (
-        <article className="overflow-x-auto rounded-2xl border border-gray-100 bg-white p-5 shadow-sm ring-1 ring-gray-50">
-          <h3 className="text-lg font-semibold text-damiun-wordmark">Enrollment report</h3>
-          <table className="data-table mt-3">
-            <thead>
-              <tr>
-                <th>Course</th>
-                <th>Enrollments</th>
-                <th>Completed</th>
-                <th>Completion rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {reportRows.enrollmentsReport.map((row) => (
-                <tr key={row.course}>
-                  <td>{row.course}</td>
-                  <td>{row.enrollments}</td>
-                  <td>{row.completed}</td>
-                  <td>{row.completionRate}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </article>
-      )}
-
-      {tab === "revenue" && (
-        <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <article className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm ring-1 ring-gray-50">
-              <p className="text-xs font-bold uppercase text-damiun-muted">Total revenue</p>
-              <p className="mt-2 text-2xl font-bold text-damiun-wordmark">
-                {new Intl.NumberFormat("uz-UZ").format(totalRevenue)} so&apos;m
-              </p>
-            </article>
-            <article className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm ring-1 ring-gray-50">
-              <p className="text-xs font-bold uppercase text-damiun-muted">Paid rows</p>
-              <p className="mt-2 text-2xl font-bold text-damiun-wordmark">{freeVsPaid.paid}</p>
-            </article>
-            <article className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm ring-1 ring-gray-50">
-              <p className="text-xs font-bold uppercase text-damiun-muted">Free rows</p>
-              <p className="mt-2 text-2xl font-bold text-damiun-wordmark">{freeVsPaid.free}</p>
-            </article>
-          </div>
-          <article className="overflow-x-auto rounded-2xl border border-gray-100 bg-white p-5 shadow-sm ring-1 ring-gray-50">
-            <h3 className="text-lg font-semibold text-damiun-wordmark">Revenue by payment</h3>
-            <table className="data-table mt-3">
-              <thead>
-                <tr>
-                  <th>Course</th>
-                  <th>Amount</th>
-                  <th>Instructor payout</th>
-                  <th>Net</th>
-                  <th>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {revenueRows.map((row, i) => (
-                  <tr key={`${row.course}-${i}`}>
-                    <td>{row.course}</td>
-                    <td>{row.amount}</td>
-                    <td>{row.payout}</td>
-                    <td>{row.net}</td>
-                    <td>{row.date}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </article>
-        </div>
-      )}
-
-      {tab === "students" && (
-        <article className="overflow-x-auto rounded-2xl border border-gray-100 bg-white p-5 shadow-sm ring-1 ring-gray-50">
-          <h3 className="text-lg font-semibold text-damiun-wordmark">Students report</h3>
-          <table className="data-table mt-3">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Enrollments</th>
-                <th>Completed</th>
-              </tr>
-            </thead>
-            <tbody>
-              {studentsReport.map((row) => (
-                <tr key={row.email}>
-                  <td>{row.name}</td>
-                  <td>{row.email}</td>
-                  <td>{row.enrollments}</td>
-                  <td>{row.completed}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="mt-4 text-sm text-damiun-muted">
-            Growth (mock): {reportRows.studentsGrowth.map((g) => `${g.month}:${g.value}`).join(" · ")}
-          </p>
-        </article>
-      )}
-
-      {tab === "progress" && (
-        <article className="overflow-x-auto rounded-2xl border border-gray-100 bg-white p-5 shadow-sm ring-1 ring-gray-50">
-          <h3 className="text-lg font-semibold text-damiun-wordmark">Progress report</h3>
-          <p className="mt-1 text-sm text-damiun-muted">Average progress and potentially stuck learners (progress under 25%).</p>
-          <table className="data-table mt-3">
-            <thead>
-              <tr>
-                <th>Course</th>
-                <th>Avg progress</th>
-                <th>Stuck (&lt;25%)</th>
-                <th>Active enrollments</th>
-              </tr>
-            </thead>
-            <tbody>
-              {progressRows.map((row) => (
-                <tr key={row.course}>
-                  <td>{row.course}</td>
-                  <td>{row.avgProgress}%</td>
-                  <td>{row.stuckLearners}</td>
-                  <td>{row.active}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </article>
-      )}
-
-      {tab === "quiz" && (
-        <div className="space-y-4">
+      {tab === "revenue" && revenueTotals && (
+        <div className="grid gap-4 sm:grid-cols-3">
           <article className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm ring-1 ring-gray-50">
-            <h3 className="text-lg font-semibold text-damiun-wordmark">Quiz overview</h3>
-            <p className="mt-2 text-sm text-damiun-muted">Total attempts: {reportRows.quizOverview.totalAttempts}</p>
-            <p className="mt-1 text-sm text-damiun-muted">Average score: {reportRows.quizOverview.averageScore}%</p>
-          </article>
-          <article className="overflow-x-auto rounded-2xl border border-gray-100 bg-white p-5 shadow-sm ring-1 ring-gray-50">
-            <h3 className="text-lg font-semibold text-damiun-wordmark">Attempts</h3>
-            <table className="data-table mt-3">
-              <thead>
-                <tr>
-                  <th>Course</th>
-                  <th>Student</th>
-                  <th>Score</th>
-                  <th>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {quizAttemptRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="text-center text-damiun-muted">
-                      No attempts
-                    </td>
-                  </tr>
-                ) : (
-                  quizAttemptRows.map((row) => (
-                    <tr key={row.id}>
-                      <td>{row.course}</td>
-                      <td>{row.user}</td>
-                      <td>{row.score}%</td>
-                      <td>{formatDate(row.date)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </article>
-        </div>
-      )}
-
-      {tab === "certificates" && (
-        <article className="overflow-x-auto rounded-2xl border border-gray-100 bg-white p-5 shadow-sm ring-1 ring-gray-50">
-          <h3 className="text-lg font-semibold text-damiun-wordmark">Certificates issued</h3>
-          <table className="data-table mt-3">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Course</th>
-                <th>Student</th>
-                <th>Issued</th>
-              </tr>
-            </thead>
-            <tbody>
-              {certRows.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="text-center text-damiun-muted">
-                    No certificates
-                  </td>
-                </tr>
-              ) : (
-                certRows.map((row) => (
-                  <tr key={row.id}>
-                    <td className="font-mono text-xs">{row.id}</td>
-                    <td>{row.course}</td>
-                    <td>{row.student}</td>
-                    <td>{formatDate(row.issued)}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </article>
-      )}
-
-      {tab === "instructors" && (
-        <article className="overflow-x-auto rounded-2xl border border-gray-100 bg-white p-5 shadow-sm ring-1 ring-gray-50">
-          <h3 className="text-lg font-semibold text-damiun-wordmark">Instructor report</h3>
-          <table className="data-table mt-3">
-            <thead>
-              <tr>
-                <th>Instructor</th>
-                <th>Courses</th>
-                <th>Students</th>
-                <th>Rating</th>
-              </tr>
-            </thead>
-            <tbody>
-              {reportRows.instructorReport.map((row) => (
-                <tr key={row.instructor}>
-                  <td>{row.instructor}</td>
-                  <td>{row.courses}</td>
-                  <td>{row.students}</td>
-                  <td>{row.rating}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </article>
-      )}
-
-      {tab === "reviews" && (
-        <div className="space-y-4">
-          <article className="rounded-2xl border border-amber-100 bg-amber-50/80 p-4 text-sm text-amber-950">
-            <p className="font-semibold">Courses with no reviews</p>
-            <p className="mt-1 text-damiun-body">
-              {coursesNoReviews.length ? coursesNoReviews.join(", ") : "All courses have at least one review."}
+            <p className="text-xs font-bold uppercase text-damiun-muted">Total revenue</p>
+            <p className="mt-2 text-2xl font-bold text-damiun-wordmark">
+              {new Intl.NumberFormat("uz-UZ").format(revenueTotals.total)} so&apos;m
             </p>
           </article>
-          <article className="overflow-x-auto rounded-2xl border border-gray-100 bg-white p-5 shadow-sm ring-1 ring-gray-50">
-            <h3 className="text-lg font-semibold text-damiun-wordmark">Recent reviews</h3>
-            <table className="data-table mt-3">
-              <thead>
-                <tr>
-                  <th>Course</th>
-                  <th>Author</th>
-                  <th>Rating</th>
-                  <th>Comment</th>
-                  <th>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reviewRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="text-center text-damiun-muted">
-                      No reviews
-                    </td>
-                  </tr>
-                ) : (
-                  reviewRows.map((row) => (
-                    <tr key={row.id}>
-                      <td>{row.course}</td>
-                      <td>{row.author}</td>
-                      <td>{row.rating}</td>
-                      <td className="max-w-xs truncate">{row.text}</td>
-                      <td>{formatDate(row.date)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <article className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm ring-1 ring-gray-50">
+            <p className="text-xs font-bold uppercase text-damiun-muted">Rows</p>
+            <p className="mt-2 text-2xl font-bold text-damiun-wordmark">{rows.length}</p>
+          </article>
+          <article className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm ring-1 ring-gray-50">
+            <p className="text-xs font-bold uppercase text-damiun-muted">Net (sum)</p>
+            <p className="mt-2 text-2xl font-bold text-damiun-wordmark">
+              {new Intl.NumberFormat("uz-UZ").format(revenueTotals.netSum)} so&apos;m
+            </p>
           </article>
         </div>
       )}
+
+      {tab === "quiz" && quizOverview && (
+        <article className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm ring-1 ring-gray-50">
+          <h3 className="text-lg font-semibold text-damiun-wordmark">Quiz overview</h3>
+          <p className="mt-2 text-sm text-damiun-muted">Total attempts: {quizOverview.attempts}</p>
+          <p className="mt-1 text-sm text-damiun-muted">Average score: {quizOverview.averageScore}%</p>
+        </article>
+      )}
+
+      <article className="overflow-x-auto rounded-2xl border border-gray-100 bg-white p-5 shadow-sm ring-1 ring-gray-50">
+        <h3 className="text-lg font-semibold text-damiun-wordmark capitalize">{tab.replace(/-/g, " ")}</h3>
+        {!columns.length ? (
+          <p className="mt-4 text-sm text-damiun-muted">{loading ? "Loading…" : "No rows in range."}</p>
+        ) : (
+          <table className="data-table mt-3">
+            <thead>
+              <tr>
+                {columns.map((col) => (
+                  <th key={col}>{humanizeKey(col)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, i) => (
+                <tr key={i}>
+                  {columns.map((col) => (
+                    <td key={col}>{formatCell(col, row[col])}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </article>
     </div>
   );
 }

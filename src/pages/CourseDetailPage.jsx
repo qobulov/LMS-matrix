@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   BookOpen,
@@ -13,16 +13,20 @@ import {
   Users,
 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
+import { courseApi, enrollmentApi, reviewApi } from "../api/endpoints";
 import { useLms } from "../data/LmsContext";
+import { mapCourseDetail } from "../utils/gatewayMappers";
 import { formatDate } from "../utils/format";
 
 function totalLessons(course) {
-  return course.modules.reduce((sum, m) => sum + m.lessons.length, 0);
+  if (!course?.modules?.length) return 0;
+  return course.modules.reduce((sum, m) => sum + (m.lessons?.length ?? 0), 0);
 }
 
 function flattenLessons(course) {
   return course.modules.flatMap((module) =>
-    module.lessons.map((lesson) => ({
+    (module.lessons ?? []).map((lesson) => ({
       ...lesson,
       moduleTitle: module.title,
       moduleId: module.id,
@@ -34,9 +38,20 @@ function formatPriceUZS(n) {
   return new Intl.NumberFormat("uz-UZ").format(n) + " so'm";
 }
 
+function mapEnrollmentRow(e, courseIdStr) {
+  if (!e) return null;
+  return {
+    id: String(e.id),
+    courseId: courseIdStr,
+    status: e.status ?? "active",
+    progress: e.progress_percent ?? 0,
+    completedLessonIds: (e.completed_lesson_ids ?? []).map(String),
+  };
+}
+
 function CourseSyllabusSection({ course, enrollment }) {
   const [openModuleIds, setOpenModuleIds] = useState(
-    () => new Set(course.modules.map((m) => m.id)),
+    () => new Set((course.modules ?? []).map((m) => m.id)),
   );
 
   const toggleModule = (id) => {
@@ -55,7 +70,7 @@ function CourseSyllabusSection({ course, enrollment }) {
         Syllabus
       </h2>
       <div className="space-y-3">
-        {course.modules.map((module) => {
+        {(course.modules ?? []).map((module) => {
           const isOpen = openModuleIds.has(module.id);
           return (
             <div key={module.id} className="overflow-hidden rounded-xl border border-gray-100">
@@ -69,7 +84,7 @@ function CourseSyllabusSection({ course, enrollment }) {
               </button>
               {isOpen && (
                 <ul className="divide-y divide-gray-100 bg-white">
-                  {module.lessons.map((lesson) => {
+                  {(module.lessons ?? []).map((lesson) => {
                     const canPreview = lesson.isPreview;
                     const locked = !enrollment && !canPreview;
                     return (
@@ -113,26 +128,61 @@ function CourseSyllabusSection({ course, enrollment }) {
 export function CourseDetailPage() {
   const { courseId } = useParams();
   const navigate = useNavigate();
-  const {
-    courses,
-    users,
-    currentUser,
-    role,
-    enrollmentByCourseId,
-    enrollToCourse,
-    addCourseReview,
-    isAuthenticated,
-  } = useLms();
+  const { currentUser, role, isAuthenticated, getToken } = useLms();
 
+  const [course, setCourse] = useState(null);
+  const [enrollment, setEnrollment] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState("");
+  const [enrolling, setEnrolling] = useState(false);
 
-  const course = useMemo(() => courses.find((c) => c.id === courseId), [courses, courseId]);
-  const instructor = useMemo(
-    () => (course ? users.find((u) => u.id === course.instructorId) : null),
-    [course, users],
-  );
-  const enrollment = course ? enrollmentByCourseId[course.id] : undefined;
+  const loadCourse = useCallback(async () => {
+    if (!courseId) return;
+    const raw = await courseApi.getById(courseId, {});
+    const mapped = mapCourseDetail(raw);
+    if (!mapped?.id) {
+      throw new Error("Course not found");
+    }
+    setCourse(mapped);
+  }, [courseId]);
+
+  const loadEnrollment = useCallback(async () => {
+    const token = getToken();
+    if (!token || !courseId) {
+      setEnrollment(null);
+      return;
+    }
+    const data = await enrollmentApi.myCourses({ token });
+    const list = data.enrollments ?? [];
+    const row = list.find((e) => String(e.course?.id ?? e.course_id) === String(courseId));
+    setEnrollment(row ? mapEnrollmentRow(row, courseId) : null);
+  }, [getToken, courseId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        await loadCourse();
+        if (!cancelled) await loadEnrollment();
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load course");
+          setCourse(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadCourse, loadEnrollment]);
+
+  const instructor = course?.instructor ?? null;
 
   const lessonCount = useMemo(() => (course ? totalLessons(course) : 0), [course]);
 
@@ -144,31 +194,80 @@ export function CourseDetailPage() {
     return flat.find((l) => !done.has(l.id)) || flat[0] || null;
   }, [course, enrollment]);
 
-  const handleEnroll = () => {
+  const handleEnroll = async () => {
     if (!course || !currentUser) return;
     if (currentUser.role !== "student") return;
     if (enrollment) return;
+    const token = getToken();
+    if (!token) return;
     if (course.price > 0) {
       const ok = window.confirm(
-        `Emulate payment of ${formatPriceUZS(course.price)} for "${course.title}"?`,
+        `Confirm enrollment for ${formatPriceUZS(course.price)} for "${course.title}"?`,
       );
       if (!ok) return;
     }
-    enrollToCourse(course.id);
+    setEnrolling(true);
+    try {
+      await enrollmentApi.enroll({ course_id: course.id }, { token });
+      toast.success("Enrolled");
+      await loadEnrollment();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Enrollment failed");
+    } finally {
+      setEnrolling(false);
+    }
   };
 
-  const handleReviewSubmit = (e) => {
+  const handleReviewSubmit = async (e) => {
     e.preventDefault();
     if (!course || !reviewText.trim()) return;
-    addCourseReview({ courseId: course.id, rating: reviewRating, text: reviewText.trim() });
-    setReviewText("");
-    setReviewRating(5);
+    const token = getToken();
+    if (!token) return;
+    try {
+      const res = await reviewApi.create(
+        {
+          course_id: course.id,
+          rating: reviewRating,
+          comment: reviewText.trim(),
+        },
+        { token },
+      );
+      setCourse((prev) => {
+        if (!prev) return prev;
+        const newRev = {
+          id: `r-${Date.now()}`,
+          author: currentUser?.fullName ?? "You",
+          rating: reviewRating,
+          date: new Date().toISOString(),
+          text: reviewText.trim(),
+        };
+        return {
+          ...prev,
+          reviews: [newRev, ...(prev.reviews ?? [])],
+          rating: res.new_rating_avg ?? prev.rating,
+          reviewCount: res.review_count ?? (prev.reviewCount ?? 0) + 1,
+        };
+      });
+      setReviewText("");
+      setReviewRating(5);
+      toast.success("Review submitted");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not submit review");
+    }
   };
 
-  if (!course) {
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-damiun-surface-app text-sm text-gray-500">
+        Loading…
+      </div>
+    );
+  }
+
+  if (error || !course) {
     return (
       <div className="min-h-screen bg-damiun-surface-app px-4 py-16 text-center">
-        <p className="text-damiun-muted">Course not found.</p>
+        <p className="text-damiun-muted">{error || "Course not found."}</p>
         <button
           type="button"
           onClick={() => navigate("/catalog")}
@@ -248,7 +347,7 @@ export function CourseDetailPage() {
                   {course.rating != null && (
                     <span className="inline-flex items-center gap-1 font-semibold text-amber-600">
                       <Star className="h-4 w-4 fill-amber-400 text-amber-500" />
-                      {course.rating} ({course.reviewCount} reviews)
+                      {Number(course.rating).toFixed(1)} ({course.reviewCount} reviews)
                     </span>
                   )}
                 </div>
@@ -269,7 +368,9 @@ export function CourseDetailPage() {
                   <div>
                     <p className="text-xl font-semibold">{instructor.fullName}</p>
                     {instructor.rating != null && (
-                      <p className="mt-1 text-sm text-amber-600">Instructor rating {instructor.rating.toFixed(1)}</p>
+                      <p className="mt-1 text-sm text-amber-600">
+                        Instructor rating {Number(instructor.rating).toFixed(1)}
+                      </p>
                     )}
                     <p className="mt-2 max-w-prose text-sm leading-relaxed text-damiun-body">{instructor.bio}</p>
                   </div>
@@ -352,7 +453,10 @@ export function CourseDetailPage() {
                       required
                     />
                   </label>
-                  <button type="submit" className="rounded-full bg-damiun-primary px-5 py-2 text-sm font-semibold text-white hover:bg-damiun-primary-hover">
+                  <button
+                    type="submit"
+                    className="rounded-full bg-damiun-primary px-5 py-2 text-sm font-semibold text-white hover:bg-damiun-primary-hover"
+                  >
                     Submit review
                   </button>
                 </form>
@@ -387,9 +491,10 @@ export function CourseDetailPage() {
                 <button
                   type="button"
                   onClick={handleEnroll}
-                  className="mt-6 w-full rounded-full bg-damiun-primary py-3 text-sm font-bold text-white shadow-sm transition hover:bg-damiun-primary-hover"
+                  disabled={enrolling}
+                  className="mt-6 w-full rounded-full bg-damiun-primary py-3 text-sm font-bold text-white shadow-sm transition hover:bg-damiun-primary-hover disabled:opacity-60"
                 >
-                  {course.price > 0 ? "Enroll (mock pay)" : "Enroll free"}
+                  {enrolling ? "Enrolling…" : course.price > 0 ? "Enroll" : "Enroll free"}
                 </button>
               )}
 

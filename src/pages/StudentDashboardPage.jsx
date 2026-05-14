@@ -1,23 +1,57 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Award, BookOpen, ClipboardList } from "lucide-react";
+import { enrollmentApi } from "../api/endpoints";
 import { StatCard } from "../components/ui/StatCard";
 import { useLms } from "../data/LmsContext";
+import { mapEnrollmentFromApi } from "../utils/gatewayMappers";
 import { formatDate } from "../utils/format";
 
 export function StudentDashboardPage() {
-  const { courses, myEnrollments } = useLms();
+  const { getToken } = useLms();
+  const [enrollments, setEnrollments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const token = getToken();
+    if (!token) {
+      setEnrollments([]);
+      setLoading(false);
+      return;
+    }
+    void (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await enrollmentApi.myCourses({ token });
+        const list = (data.enrollments ?? []).map(mapEnrollmentFromApi).filter(Boolean);
+        if (!cancelled) setEnrollments(list);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load");
+          setEnrollments([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [getToken]);
 
   const stats = useMemo(() => {
-    const active = myEnrollments.filter((e) => e.status === "active").length;
-    const completed = myEnrollments.filter((e) => e.status === "completed").length;
-    return { enrolled: myEnrollments.length, active, completed };
-  }, [myEnrollments]);
+    const active = enrollments.filter((e) => e.status === "active").length;
+    const completed = enrollments.filter((e) => e.status === "completed").length;
+    return { enrolled: enrollments.length, active, completed };
+  }, [enrollments]);
 
   const quizRows = useMemo(() => {
     const rows = [];
-    for (const en of myEnrollments) {
-      const course = courses.find((c) => c.id === en.courseId);
+    for (const en of enrollments) {
+      const course = en.course;
       if (!course) continue;
       for (const att of en.attempts || []) {
         rows.push({
@@ -30,9 +64,21 @@ export function StudentDashboardPage() {
     }
     rows.sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
     return rows;
-  }, [myEnrollments, courses]);
+  }, [enrollments]);
 
-  if (myEnrollments.length === 0) {
+  if (loading) {
+    return (
+      <div className="flex min-h-[30vh] items-center justify-center text-sm text-gray-500">
+        Loading…
+      </div>
+    );
+  }
+
+  if (error) {
+    return <div className="rounded-xl border border-red-100 bg-red-50/80 p-4 text-sm text-red-800">{error}</div>;
+  }
+
+  if (enrollments.length === 0) {
     return (
       <div className="mx-auto max-w-lg rounded-2xl bg-white p-10 text-center shadow-sm ring-1 ring-gray-100">
         <h2 className="text-xl font-bold text-damiun-wordmark">My learning</h2>
@@ -51,7 +97,7 @@ export function StudentDashboardPage() {
     <div className="flex flex-col gap-8">
       <div>
         <h1 className="text-2xl font-bold text-damiun-wordmark">My learning dashboard</h1>
-        <p className="mt-1 text-sm text-damiun-muted">Progress, quiz attempts, and certificates (README).</p>
+        <p className="mt-1 text-sm text-damiun-muted">Progress, quiz attempts, and certificates.</p>
       </div>
 
       <div className="stats-grid">
@@ -61,11 +107,11 @@ export function StudentDashboardPage() {
       </div>
 
       <div className="flex flex-col gap-5">
-        {myEnrollments.map((enrollment) => {
-          const course = courses.find((item) => item.id === enrollment.courseId);
+        {enrollments.map((enrollment) => {
+          const course = enrollment.course;
           if (!course) return null;
 
-          const lessons = course.modules.flatMap((module) => module.lessons);
+          const lessons = course.modules.flatMap((module) => module.lessons ?? []);
           const nextLesson = lessons.find((lesson) => !enrollment.completedLessonIds.includes(lesson.id));
           const latestAttempt = enrollment.attempts[enrollment.attempts.length - 1];
 
@@ -134,12 +180,10 @@ export function StudentDashboardPage() {
                     <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-damiun-nav-tint/60 px-3 py-2 text-xs text-damiun-body">
                       <Award className="h-4 w-4 shrink-0 text-damiun-primary" />
                       <span>
-                        Certificate: <strong className="text-damiun-wordmark">{enrollment.certificate.id}</strong>
+                        Certificate:{" "}
+                        <strong className="text-damiun-wordmark">{enrollment.certificate.id}</strong>
                       </span>
-                      <Link
-                        to="/certificates"
-                        className="font-semibold text-damiun-primary hover:underline"
-                      >
+                      <Link to="/certificates" className="font-semibold text-damiun-primary hover:underline">
                         View
                       </Link>
                       <Link

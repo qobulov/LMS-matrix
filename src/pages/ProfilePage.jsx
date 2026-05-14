@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Award,
@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { AvatarUploader } from "../components/ui/avatar-uploader";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
+import { fileApi, profileApi } from "../api/endpoints";
 import { APP_NAME } from "../constants/branding";
 import { useLms } from "../data/LmsContext";
 
@@ -39,94 +40,172 @@ const experienceCopy = {
 };
 
 export function ProfilePage() {
-  const {
-    currentUser,
-    updateProfile,
-    role,
-    courses,
-    myEnrollments,
-    enrollments,
-    students,
-    instructors,
-  } = useLms();
+  const { currentUser, updateProfile, role, getToken } = useLms();
   const [tab, setTab] = useState("overview");
+  const [saving, setSaving] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [apiStats, setApiStats] = useState(null);
+  const [savedSnapshot, setSavedSnapshot] = useState({
+    fullName: currentUser?.fullName || "",
+    bio: currentUser?.bio || "",
+    avatar: currentUser?.avatar || "",
+  });
   const [form, setForm] = useState({
     fullName: currentUser?.fullName || "",
     bio: currentUser?.bio || "",
     avatar: currentUser?.avatar || "",
   });
 
-  const onSubmit = (event) => {
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const token = getToken();
+      if (!token) {
+        setProfileLoading(false);
+        return;
+      }
+      setProfileLoading(true);
+      try {
+        const data = await profileApi.me({ token });
+        if (cancelled) return;
+        const snap = {
+          fullName: String(data.full_name ?? "").trim(),
+          bio: String(data.bio ?? ""),
+          avatar: String(data.avatar_url ?? ""),
+        };
+        setForm(snap);
+        setSavedSnapshot(snap);
+        setApiStats(data.stats && typeof data.stats === "object" ? data.stats : null);
+      } catch {
+        if (!cancelled && currentUser) {
+          const snap = {
+            fullName: currentUser.fullName || "",
+            bio: currentUser.bio || "",
+            avatar: currentUser.avatar || "",
+          };
+          setForm(snap);
+          setSavedSnapshot(snap);
+        }
+      } finally {
+        if (!cancelled) setProfileLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [getToken, currentUser?.id]);
+
+  const onSubmit = async (event) => {
     event.preventDefault();
-    updateProfile(form);
-    toast.success("Profile saved");
+    setSaving(true);
+    try {
+      await updateProfile(form);
+      setSavedSnapshot({ ...form });
+      const token = getToken();
+      if (token) {
+        try {
+          const data = await profileApi.me({ token });
+          setApiStats(data.stats && typeof data.stats === "object" ? data.stats : null);
+        } catch {
+          // ignore
+        }
+      }
+      toast.success("Profile saved");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save profile");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleUpload = async (file) => {
-    const nextUrl = URL.createObjectURL(file);
-    setForm((prev) => ({ ...prev, avatar: nextUrl }));
-    return { success: true };
+    const token = getToken();
+    if (!token) {
+      toast.error("Not signed in");
+      throw new Error("Not signed in");
+    }
+    try {
+      const cdnUrl = await fileApi.upload(file, { token });
+      let nextForm;
+      setForm((prev) => {
+        nextForm = { ...prev, avatar: cdnUrl };
+        return nextForm;
+      });
+      await updateProfile({
+        fullName: nextForm.fullName,
+        bio: nextForm.bio,
+        avatar: cdnUrl,
+      });
+      setSavedSnapshot({ ...nextForm, avatar: cdnUrl });
+      toast.success("Avatar updated");
+      return { success: true };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Upload failed";
+      toast.error(message);
+      throw err instanceof Error ? err : new Error(message);
+    }
   };
 
   const resetForm = () => {
-    setForm({
-      fullName: currentUser?.fullName || "",
-      bio: currentUser?.bio || "",
-      avatar: currentUser?.avatar || "",
-    });
+    setForm({ ...savedSnapshot });
     toast.message("Form reset to saved profile");
   };
 
-  const completedCount = myEnrollments.filter((item) => item.status === "completed").length;
-  const activeCount = myEnrollments.filter((item) => item.status === "active").length;
-  const certCount = myEnrollments.filter((item) => item.certificate).length;
-  const myCoursesCount = courses.filter((course) => course.instructorId === currentUser?.id).length;
-  const myStudentsCount = enrollments.filter((item) =>
-    courses.some(
-      (course) => course.id === item.courseId && course.instructorId === currentUser?.id,
-    ),
-  ).length;
+  const statsSource = apiStats ?? currentUser?.stats ?? {};
 
-  const statsByRole = {
-    student: [
-      { label: "Enrolled", value: myEnrollments.length, helper: "Courses you are taking" },
-      { label: "Active", value: activeCount, helper: "Currently in progress" },
-      { label: "Completed", value: completedCount, helper: "Finished journeys" },
-    ],
-    instructor: [
-      { label: "Courses", value: myCoursesCount, helper: "Created under your account" },
-      { label: "Students", value: myStudentsCount, helper: "Unique enrollments" },
-      {
-        label: "Completion",
-        value: `${Math.max(
-          0,
-          Math.round(
-            (myStudentsCount
-              ? enrollments.filter(
-                  (item) =>
-                    item.status === "completed" &&
-                    courses.some(
-                      (course) =>
-                        course.id === item.courseId && course.instructorId === currentUser?.id,
-                    ),
-                ).length / myStudentsCount
-              : 0) * 100,
-          ),
-        )}%`,
-        helper: "Average learner completion",
-      },
-    ],
-    superadmin: [
-      { label: "Users", value: students.length + instructors.length + 1, helper: "Including you" },
-      { label: "Students", value: students.length, helper: "Active learners" },
-      { label: "Instructors", value: instructors.length, helper: "Content creators" },
-    ],
-  };
+  const certCount = Number(statsSource.certificates ?? statsSource.certificates_count ?? 0);
 
-  const profileStats = statsByRole[role] || statsByRole.student;
+  const profileStats = useMemo(() => {
+    const s = statsSource;
+    if (role === "student") {
+      return [
+        { label: "Enrolled", value: s.enrolled ?? 0, helper: "Courses you are taking" },
+        { label: "Active", value: s.active ?? 0, helper: "Currently in progress" },
+        { label: "Completed", value: s.completed ?? 0, helper: "Finished journeys" },
+      ];
+    }
+    if (role === "instructor") {
+      const courseCount = s.courses ?? s.course_count ?? 0;
+      const studentCount = s.students ?? s.total_students ?? 0;
+      const completion = s.completion_rate ?? 0;
+      return [
+        { label: "Courses", value: courseCount, helper: "Created under your account" },
+        { label: "Students", value: studentCount, helper: "Learners across your courses" },
+        {
+          label: "Completion",
+          value: `${Math.max(0, Math.round(Number(completion) || 0))}%`,
+          helper: "Average learner completion",
+        },
+      ];
+    }
+    if (role === "superadmin") {
+      return [
+        { label: "Users", value: s.total_users ?? 0, helper: "Registered accounts" },
+        { label: "Students", value: s.students ?? s.students_count ?? 0, helper: "Learner role" },
+        {
+          label: "Instructors",
+          value: s.instructors ?? s.instructors_count ?? 0,
+          helper: "Content creators",
+        },
+      ];
+    }
+    return [
+      { label: "Enrolled", value: 0, helper: "Courses you are taking" },
+      { label: "Active", value: 0, helper: "Currently in progress" },
+      { label: "Completed", value: 0, helper: "Finished journeys" },
+    ];
+  }, [role, statsSource]);
   const experienceText = experienceCopy[role] || experienceCopy.student;
 
   if (!currentUser) return null;
+
+  if (profileLoading) {
+    return (
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 pb-4">
+        <p className="py-16 text-center text-sm text-damiun-muted">Loading profile…</p>
+      </div>
+    );
+  }
 
   const initials =
     currentUser.fullName
@@ -365,9 +444,10 @@ export function ProfilePage() {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-full bg-damiun-primary px-8 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-damiun-primary-hover"
+                  disabled={saving}
+                  className="rounded-full bg-damiun-primary px-8 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-damiun-primary-hover disabled:pointer-events-none disabled:opacity-60"
                 >
-                  Save changes
+                  {saving ? "Saving…" : "Save changes"}
                 </button>
               </div>
             </form>

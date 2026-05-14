@@ -1,19 +1,12 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useMemo, useState } from "react";
-import {
-  categories,
-  courses as initialCourses,
-  enrollments as initialEnrollments,
-  payments,
-  roles,
-  users as initialUsers,
-} from "./mockData";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { authApi, profileApi } from "../api/endpoints";
 
 const LmsContext = createContext(null);
 
 const SESSION_KEY = "lms_session_v1";
 
-function readSession() {
+export function readSession() {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
@@ -33,464 +26,250 @@ function persistSession(session) {
   localStorage.setItem("user_id", session.userId);
 }
 
-function downloadCsv(filename, csvText) {
-  const blob = new Blob([csvText], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.setAttribute("download", filename);
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+function mapProfileToUser(api) {
+  if (!api || typeof api !== "object") return null;
+  return {
+    id: String(api.id ?? ""),
+    fullName: String(api.full_name ?? "").trim() || "User",
+    email: String(api.email ?? "").trim().toLowerCase(),
+    role: api.role,
+    avatar: api.avatar_url ?? "",
+    bio: api.bio ?? "",
+    stats: api.stats ?? null,
+  };
+}
+
+/**
+ * `raw` is the object returned by callGateway (API body `data`), which may be:
+ * - LMS-style: { access_token, refresh_token, user: { id, full_name, email, role, ... } }
+ * - U-code-style: { token: { access_token, refresh_token }, user_id, user, user_data, ... }
+ */
+function normalizeGatewayAuthPayload(raw, profileHints = {}) {
+  if (!raw || typeof raw !== "object") {
+    return { accessToken: null, refreshToken: null, mapped: null };
+  }
+
+  const accessToken = raw.access_token ?? raw.token?.access_token ?? null;
+  const refreshToken = raw.refresh_token ?? raw.token?.refresh_token ?? null;
+
+  const userObj = raw.user ?? raw.user_data;
+  const appUserId = String(
+    raw.user_id ?? raw.user_id_auth ?? userObj?.id ?? "",
+  ).trim();
+
+  const fullName =
+    String(userObj?.full_name ?? profileHints.fullName ?? "").trim() ||
+    (userObj?.email ? String(userObj.email).split("@")[0] : "") ||
+    "User";
+  const email = String(
+    userObj?.email ?? profileHints.email ?? "",
+  ).trim().toLowerCase();
+  const role = userObj?.role ?? profileHints.role ?? "student";
+  const avatar = userObj?.avatar_url ?? profileHints.avatar ?? "";
+  const bio = userObj?.bio ?? "";
+
+  if (!accessToken || !refreshToken || !appUserId || !email) {
+    return { accessToken: null, refreshToken: null, mapped: null };
+  }
+
+  return {
+    accessToken,
+    refreshToken,
+    mapped: {
+      id: appUserId,
+      fullName,
+      email,
+      role,
+      avatar,
+      bio,
+      stats: null,
+    },
+  };
+}
+
+function normalizeRefreshResponse(raw) {
+  if (!raw || typeof raw !== "object") {
+    return { accessToken: null, refreshToken: null };
+  }
+  const accessToken = raw.access_token ?? raw.token?.access_token ?? null;
+  const refreshToken = raw.refresh_token ?? raw.token?.refresh_token ?? null;
+  return { accessToken, refreshToken };
+}
+
+function readInitialUser() {
+  const s = readSession();
+  if (!s?.user?.id) return null;
+  if (s.userId != null && String(s.user.id) !== String(s.userId)) return null;
+  return s.user;
 }
 
 export function LmsProvider({ children }) {
-  const [users, setUsers] = useState(initialUsers);
-  const [courses, setCourses] = useState(initialCourses);
-  const [enrollments, setEnrollments] = useState(initialEnrollments);
-  const [session, setSession] = useState(readSession());
+  const [currentUser, setCurrentUser] = useState(readInitialUser);
+  const [authReady, setAuthReady] = useState(() => {
+    const s = readSession();
+    if (!s?.token) return true;
+    return Boolean(s.user?.id && String(s.user.id) === String(s.userId));
+  });
 
-  const currentUser = useMemo(
-    () => users.find((user) => user.id === session?.userId) || null,
-    [users, session],
+  const isAuthenticated = Boolean(
+    authReady && currentUser?.id && readSession()?.token,
   );
+  const role = currentUser?.role ?? null;
 
-  const isAuthenticated = Boolean(currentUser);
-  const role = currentUser?.role || null;
+  const getToken = useCallback(() => readSession()?.token ?? null, []);
 
-  const instructors = useMemo(
-    () => users.filter((user) => user.role === "instructor"),
-    [users],
-  );
+  useEffect(() => {
+    let cancelled = false;
+    const s = readSession();
+    if (!s?.token) {
+      setAuthReady(true);
+      return;
+    }
+    const hasUser = s.user?.id && String(s.user.id) === String(s.userId);
+    if (hasUser) {
+      setCurrentUser((prev) => prev ?? s.user);
+      setAuthReady(true);
+      return;
+    }
 
-  const students = useMemo(() => users.filter((user) => user.role === "student"), [users]);
+    void (async () => {
+      try {
+        const data = await profileApi.me({ token: s.token });
+        const mapped = mapProfileToUser(data);
+        if (cancelled || !mapped?.id) return;
+        setCurrentUser(mapped);
+        persistSession({ ...s, userId: mapped.id, user: mapped });
+      } catch {
+        persistSession(null);
+        setCurrentUser(null);
+      } finally {
+        if (!cancelled) setAuthReady(true);
+      }
+    })();
 
-  const myEnrollments = useMemo(() => {
-    if (!currentUser) return [];
-    return enrollments.filter((item) => item.userId === currentUser.id);
-  }, [enrollments, currentUser]);
-
-  const enrollmentByCourseId = useMemo(() => {
-    return myEnrollments.reduce((acc, enrollment) => {
-      acc[enrollment.courseId] = enrollment;
-      return acc;
-    }, {});
-  }, [myEnrollments]);
-
-  const featuredCourses = useMemo(
-    () => [...courses].sort((a, b) => b.studentCount - a.studentCount).slice(0, 3),
-    [courses],
-  );
-
-  const financeSummary = useMemo(() => {
-    const revenue = payments.reduce((sum, payment) => sum + payment.amount, 0);
-    const expenses = payments.reduce((sum, payment) => sum + payment.instructorPayout, 0);
-    return {
-      revenue,
-      expenses,
-      net: revenue - expenses,
+    return () => {
+      cancelled = true;
     };
   }, []);
 
-  const reportRows = useMemo(() => {
-    const enrollmentsReport = courses.map((course) => {
-      const rows = enrollments.filter((item) => item.courseId === course.id);
-      const completed = rows.filter((item) => item.status === "completed").length;
-      return {
-        course: course.title,
-        enrollments: rows.length,
-        completed,
-        completionRate: rows.length ? Math.round((completed / rows.length) * 100) : 0,
-      };
-    });
-
-    const quizAttempts = enrollments.flatMap((enrollment) => enrollment.attempts);
-    const avgQuiz =
-      quizAttempts.length > 0
-        ? Math.round(
-            quizAttempts.reduce((sum, attempt) => sum + attempt.score, 0) /
-              quizAttempts.length,
-          )
-        : 0;
-
-    const studentsGrowth = [
-      { month: "Jan", value: 28 },
-      { month: "Feb", value: 36 },
-      { month: "Mar", value: 51 },
-      { month: "Apr", value: students.length },
-    ];
-
-    const instructorReport = instructors.map((instructor) => {
-      const ownCourses = courses.filter((course) => course.instructorId === instructor.id);
-      const studentsCount = ownCourses.reduce((sum, course) => {
-        return (
-          sum + enrollments.filter((item) => item.courseId === course.id).length
-        );
-      }, 0);
-
-      return {
-        instructor: instructor.fullName,
-        courses: ownCourses.length,
-        students: studentsCount,
-        rating: instructor.rating || 0,
-      };
-    });
-
-    return {
-      enrollmentsReport,
-      quizOverview: {
-        totalAttempts: quizAttempts.length,
-        averageScore: avgQuiz,
-      },
-      studentsGrowth,
-      instructorReport,
-    };
-  }, [courses, enrollments, instructors, students.length]);
-
-  const login = async ({ email, password }) => {
-    const normalizedEmail = String(email || "").trim().toLowerCase();
-    const normalizedPassword = String(password || "").trim();
-    const found = users.find(
-      (user) =>
-        user.email.toLowerCase() === normalizedEmail &&
-        user.password === normalizedPassword,
+  const applyGatewayAuth = useCallback((authData, profileHints = {}) => {
+    const { accessToken, refreshToken, mapped } = normalizeGatewayAuthPayload(
+      authData,
+      profileHints,
     );
-    if (!found) {
-      return { ok: false, error: "Email yoki parol noto'g'ri" };
+    if (!accessToken || !refreshToken || !mapped?.id) {
+      throw new Error("Invalid response from server");
     }
 
+    setCurrentUser(mapped);
     const nextSession = {
-      userId: found.id,
-      token: `mock-token-${found.id}`,
-      refreshToken: `mock-refresh-${found.id}`,
+      userId: mapped.id,
+      token: accessToken,
+      refreshToken,
+      user: mapped,
     };
-
-    setSession(nextSession);
     persistSession(nextSession);
-    return { ok: true, user: found };
-  };
+    return mapped;
+  }, []);
 
-  const register = async ({ fullName, email, password, role: userRole }) => {
-    const normalizedFullName = String(fullName || "").trim();
-    const normalizedEmail = String(email || "").trim().toLowerCase();
-    const normalizedPassword = String(password || "").trim();
-
-    if (users.some((item) => item.email.toLowerCase() === normalizedEmail)) {
-      return { ok: false, error: "Bu email bilan foydalanuvchi mavjud" };
+  const refreshAuthTokens = useCallback(async () => {
+    const s = readSession();
+    if (!s?.refreshToken || !s?.userId) {
+      return false;
     }
+    try {
+      const data = await authApi.refresh({ refresh_token: s.refreshToken });
+      let { accessToken, refreshToken } = normalizeRefreshResponse(data);
+      if (!refreshToken) {
+        refreshToken = s.refreshToken;
+      }
+      if (!accessToken) {
+        return false;
+      }
+      const next = { ...s, token: accessToken, refreshToken };
+      persistSession(next);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
 
-    const created = {
-      id: `u-${Date.now()}`,
-      fullName: normalizedFullName,
-      email: normalizedEmail,
-      password: normalizedPassword,
-      role: userRole,
-      avatar:
-        "https://images.unsplash.com/photo-1584999734482-0361aecad844?auto=format&fit=crop&w=120&q=80",
-      bio: "New user",
-    };
-
-    setUsers((prev) => [created, ...prev]);
-
-    const nextSession = {
-      userId: created.id,
-      token: `mock-token-${created.id}`,
-      refreshToken: `mock-refresh-${created.id}`,
-    };
-
-    setSession(nextSession);
-    persistSession(nextSession);
-    return { ok: true, user: created };
-  };
-
-  const logout = () => {
-    setSession(null);
+  const logout = useCallback(async () => {
+    const s = readSession();
+    const accessToken = s?.token;
+    if (accessToken) {
+      try {
+        await authApi.logout({ access_token: accessToken });
+      } catch {
+        // still clear local session
+      }
+    }
+    setCurrentUser(null);
     persistSession(null);
-  };
+  }, []);
 
-  const updateProfile = ({ fullName, bio, avatar }) => {
-    if (!currentUser) return;
-    setUsers((prev) =>
-      prev.map((user) =>
-        user.id === currentUser.id
-          ? {
-              ...user,
-              fullName,
-              bio,
-              avatar,
-            }
-          : user,
-      ),
-    );
-  };
+  const updateProfile = useCallback(
+    async ({ fullName, bio, avatar }) => {
+      if (!currentUser) {
+        throw new Error("Not signed in");
+      }
+      const token = readSession()?.token;
+      if (!token) {
+        throw new Error("Not signed in");
+      }
 
-  const enrollToCourse = (courseId) => {
-    if (!currentUser || currentUser.role !== "student" || enrollmentByCourseId[courseId]) {
-      return;
-    }
+      const full_name = String(fullName ?? "").trim();
+      const bioText = String(bio ?? "").trim();
+      const avatarRaw = String(avatar ?? "").trim();
+      const payload = {
+        full_name,
+        bio: bioText,
+      };
+      if (avatarRaw && !avatarRaw.startsWith("blob:")) {
+        payload.avatar_url = avatarRaw;
+      }
 
-    setEnrollments((prev) => [
-      ...prev,
-      {
-        id: `en-${prev.length + 1}`,
-        userId: currentUser.id,
-        courseId,
-        status: "active",
-        progress: 0,
-        completedLessonIds: [],
-        attempts: [],
-        certificate: null,
-      },
-    ]);
-  };
+      await profileApi.update(payload, { token });
 
-  const completeLesson = (courseId, lessonId) => {
-    if (!currentUser) return;
+      const nextUser = {
+        ...currentUser,
+        fullName: full_name,
+        bio: bioText,
+        avatar: payload.avatar_url ?? currentUser.avatar,
+      };
+      setCurrentUser(nextUser);
+      const s = readSession();
+      if (s) {
+        persistSession({ ...s, user: nextUser });
+      }
+    },
+    [currentUser],
+  );
 
-    const targetCourse = courses.find((item) => item.id === courseId);
-    if (!targetCourse) return;
-
-    const totalLessons = targetCourse.modules.reduce(
-      (sum, module) => sum + module.lessons.length,
-      0,
-    );
-
-    setEnrollments((prev) =>
-      prev.map((item) => {
-        if (item.courseId !== courseId || item.userId !== currentUser.id) {
-          return item;
-        }
-
-        if (item.completedLessonIds.includes(lessonId)) {
-          return item;
-        }
-
-        const completedLessonIds = [...item.completedLessonIds, lessonId];
-        const progress = Math.round((completedLessonIds.length / totalLessons) * 100);
-
-        return {
-          ...item,
-          completedLessonIds,
-          progress,
-          status: progress === 100 ? "completed" : item.status,
-        };
-      }),
-    );
-  };
-
-  const submitQuiz = (courseId, score) => {
-    if (!currentUser) return;
-
-    setEnrollments((prev) =>
-      prev.map((item) => {
-        if (item.courseId !== courseId || item.userId !== currentUser.id) {
-          return item;
-        }
-
-        const updated = {
-          ...item,
-          attempts: [
-            ...item.attempts,
-            {
-              quizId: courses.find((course) => course.id === courseId)?.finalQuiz.id,
-              score,
-              timeSpentMin: 20,
-              submittedAt: new Date().toISOString(),
-            },
-          ],
-        };
-
-        if (updated.progress === 100 && score >= 70) {
-          updated.certificate = {
-            id: `CERT-${courseId.toUpperCase()}-${currentUser.id.toUpperCase()}`,
-            issuedAt: new Date().toISOString(),
-          };
-          updated.status = "completed";
-        }
-
-        return updated;
-      }),
-    );
-  };
-
-  const createCourse = (payload) => {
-    if (!currentUser || currentUser.role !== "instructor") return;
-
-    const course = {
-      id: `c-custom-${Date.now()}`,
-      title: payload.title,
-      description: payload.description,
-      coverImage: payload.coverImage,
-      category: payload.category,
-      difficulty: payload.difficulty,
-      language: payload.language,
-      price: Number(payload.price || 0),
-      durationHours: Number(payload.durationHours || 1),
-      status: payload.status,
-      rating: 0,
-      reviewCount: 0,
-      studentCount: 0,
-      instructorId: currentUser.id,
-      whatYouWillLearn: payload.whatYouWillLearn
-        .split("\n")
-        .map((item) => item.trim())
-        .filter(Boolean),
-      requirements: payload.requirements
-        .split("\n")
-        .map((item) => item.trim())
-        .filter(Boolean),
-      modules: [],
-      finalQuiz: {
-        id: `q-${Date.now()}`,
-        title: "Final Quiz",
-        passThreshold: 70,
-        timeLimitMin: 30,
-        maxAttempts: 3,
-        questions: [],
-      },
-      reviews: [],
-    };
-
-    setCourses((prev) => [course, ...prev]);
-  };
-
-  const addModuleToCourse = (courseId, moduleTitle) => {
-    setCourses((prev) =>
-      prev.map((course) => {
-        if (course.id !== courseId) return course;
-        return {
-          ...course,
-          modules: [
-            ...course.modules,
-            {
-              id: `m-${Date.now()}`,
-              title: moduleTitle,
-              lessons: [],
-            },
-          ],
-        };
-      }),
-    );
-  };
-
-  const addLessonToModule = (courseId, moduleId, lesson) => {
-    setCourses((prev) =>
-      prev.map((course) => {
-        if (course.id !== courseId) return course;
-
-        return {
-          ...course,
-          modules: course.modules.map((module) => {
-            if (module.id !== moduleId) return module;
-            return {
-              ...module,
-              lessons: [
-                ...module.lessons,
-                {
-                  id: `l-${Date.now()}`,
-                  title: lesson.title,
-                  type: lesson.type,
-                  durationMin: Number(lesson.durationMin || 10),
-                  isPreview: lesson.isPreview,
-                  content: lesson.content,
-                  resourceUrl: lesson.resourceUrl,
-                },
-              ],
-            };
-          }),
-        };
-      }),
-    );
-  };
-
-  const addCourseReview = ({ courseId, rating, text }) => {
-    if (!currentUser || currentUser.role !== "student") return;
-
-    const enrollment = enrollments.find(
-      (item) => item.courseId === courseId && item.userId === currentUser.id,
-    );
-
-    if (!enrollment || enrollment.status !== "completed") return;
-
-    setCourses((prev) =>
-      prev.map((course) => {
-        if (course.id !== courseId) return course;
-
-        const reviews = [
-          ...course.reviews,
-          {
-            id: `r-${Date.now()}`,
-            author: currentUser.fullName,
-            rating,
-            date: new Date().toISOString(),
-            text,
-          },
-        ];
-
-        const average =
-          reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length;
-
-        return {
-          ...course,
-          reviews,
-          reviewCount: reviews.length,
-          rating: Number(average.toFixed(1)),
-        };
-      }),
-    );
-  };
-
-  const exportReportCsv = (type) => {
-    if (type === "enrollments") {
-      const header = "Course,Enrollments,Completed,CompletionRate\n";
-      const body = reportRows.enrollmentsReport
-        .map((row) =>
-          [row.course, row.enrollments, row.completed, `${row.completionRate}%`].join(","),
-        )
-        .join("\n");
-      downloadCsv("enrollments-report.csv", header + body);
-      return;
-    }
-
-    if (type === "instructors") {
-      const header = "Instructor,Courses,Students,Rating\n";
-      const body = reportRows.instructorReport
-        .map((row) => [row.instructor, row.courses, row.students, row.rating].join(","))
-        .join("\n");
-      downloadCsv("instructors-report.csv", header + body);
-    }
-  };
-
-  const value = {
-    roles,
-    categories,
-    users,
-    students,
-    instructors,
-    currentUser,
-    isAuthenticated,
-    role,
-    courses,
-    featuredCourses,
-    enrollments,
-    myEnrollments,
-    enrollmentByCourseId,
-    financeSummary,
-    reportRows,
-    login,
-    register,
-    logout,
-    updateProfile,
-    enrollToCourse,
-    completeLesson,
-    submitQuiz,
-    createCourse,
-    addModuleToCourse,
-    addLessonToModule,
-    addCourseReview,
-    exportReportCsv,
-  };
+  const value = useMemo(
+    () => ({
+      currentUser,
+      isAuthenticated,
+      authReady,
+      role,
+      getToken,
+      applyGatewayAuth,
+      refreshAuthTokens,
+      logout,
+      updateProfile,
+    }),
+    [
+      currentUser,
+      isAuthenticated,
+      authReady,
+      role,
+      getToken,
+      applyGatewayAuth,
+      refreshAuthTokens,
+      logout,
+      updateProfile,
+    ],
+  );
 
   return <LmsContext.Provider value={value}>{children}</LmsContext.Provider>;
 }
