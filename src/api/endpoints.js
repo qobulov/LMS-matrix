@@ -23,13 +23,14 @@ export const fileApi = {
 
 export const courseApi = {
   getCatalog: (filters = {}, options) => callGateway("get_courses", filters, options),
+  /** lms-qobulov gateway expects `courses_id`, not `course_id`. */
   getById: (courseId, options) =>
-    callGateway("get_course_details", { course_id: courseId }, options),
+    callGateway("get_course_details", { courses_id: courseId }, options),
   getInstructorDashboard: (options) =>
     callGateway("get_instructor_dashboard", {}, options),
   create: (payload, options) => callGateway("create_course", payload, options),
   update: (courseId, payload, options) =>
-    callGateway("update_course", { course_id: courseId, ...payload }, options),
+    callGateway("update_course", { courses_id: courseId, ...payload }, options),
   addModule: (payload, options) => callGateway("create_module", payload, options),
   addLesson: (payload, options) => callGateway("create_lesson", payload, options),
 };
@@ -40,7 +41,7 @@ export const enrollmentApi = {
   getLessonViewer: (courseId, lessonId, options) =>
     callGateway(
       "get_lesson_viewer",
-      { course_id: courseId, lesson_id: lessonId },
+      { courses_id: courseId, lesson_id: lessonId },
       options,
     ),
   completeLesson: (payload, options) =>
@@ -48,7 +49,7 @@ export const enrollmentApi = {
 };
 
 export const quizApi = {
-  get: (courseId, options) => callGateway("get_quiz", { course_id: courseId }, options),
+  get: (courseId, options) => callGateway("get_quiz", { courses_id: courseId }, options),
   submitAttempt: (payload, options) =>
     callGateway("submit_quiz_attempt", payload, options),
 };

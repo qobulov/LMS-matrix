@@ -1,16 +1,17 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { RequireAuth } from "./components/auth/RequireAuth";
 import { RequireRole } from "./components/auth/RequireRole";
+import { RoleRedirect } from "./components/auth/RoleRedirect";
 import { AdminLayout } from "./components/layout/AdminLayout";
 import { AppLayout } from "./components/layout/AppLayout";
 import { LessonLayout } from "./components/layout/LessonLayout";
 import { useLms } from "./data/LmsContext";
+import { getHomePathForRole } from "./utils/authRouting";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { CatalogPage } from "./pages/CatalogPage";
 import { CertificatesPage } from "./pages/CertificatesPage";
 import { CourseDetailPage } from "./pages/CourseDetailPage";
 import { CreateCoursePage } from "./pages/CreateCoursePage";
-import { HomePage } from "./pages/HomePage";
 import { InstructorDashboardPage } from "./pages/InstructorDashboardPage";
 import { LessonViewerPage } from "./pages/LessonViewerPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
@@ -25,7 +26,7 @@ import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
 import { RewardsPage } from "./pages/RewardsPage";
 
 function App() {
-  const { isAuthenticated, authReady } = useLms();
+  const { isAuthenticated, authReady, currentUser } = useLms();
 
   if (!authReady) {
     return (
@@ -39,14 +40,25 @@ function App() {
     <Routes>
       <Route
         path="/login"
-        element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />}
+        element={
+          isAuthenticated ? (
+            <Navigate to={getHomePathForRole(currentUser?.role)} replace />
+          ) : (
+            <LoginPage />
+          )
+        }
       />
       <Route
         path="/register"
-        element={isAuthenticated ? <Navigate to="/" replace /> : <RegisterPage />}
+        element={
+          isAuthenticated ? (
+            <Navigate to={getHomePathForRole(currentUser?.role)} replace />
+          ) : (
+            <RegisterPage />
+          )
+        }
       />
 
-      {/* Course detail page accessible without auth for preview */}
       <Route path="/courses/:courseId" element={<CourseDetailPage />} />
       <Route path="/verify/:certificateId" element={<PublicVerifyPage />} />
 
@@ -57,11 +69,32 @@ function App() {
           </RequireAuth>
         }
       >
-        <Route path="/" element={<HomePage />} />
-        <Route path="/catalog" element={<CatalogPage />} />
-        <Route path="/quiz/:courseId" element={<QuizPage />} />
+        <Route path="/" element={<RoleRedirect />} />
+        <Route
+          path="/catalog"
+          element={
+            <RequireRole allow={["student"]}>
+              <CatalogPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/quiz/:courseId"
+          element={
+            <RequireRole allow={["student"]}>
+              <QuizPage />
+            </RequireRole>
+          }
+        />
         <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/rewards" element={<RewardsPage />} />
+        <Route
+          path="/rewards"
+          element={
+            <RequireRole allow={["student"]}>
+              <RewardsPage />
+            </RequireRole>
+          }
+        />
 
         <Route
           path="/student"
@@ -100,7 +133,7 @@ function App() {
         <Route
           path="/admin"
           element={
-            <RequireRole allow={["superadmin"]}>
+            <RequireRole allow={["director"]}>
               <AdminLayout />
             </RequireRole>
           }
@@ -111,11 +144,12 @@ function App() {
         </Route>
       </Route>
 
-      {/* Lesson viewer uses its own full-screen layout (no app sidebar) */}
       <Route
         element={
           <RequireAuth>
-            <LessonLayout />
+            <RequireRole allow={["student"]}>
+              <LessonLayout />
+            </RequireRole>
           </RequireAuth>
         }
       >
@@ -124,7 +158,9 @@ function App() {
 
       <Route
         path="/home"
-        element={<Navigate to={isAuthenticated ? "/" : "/login"} replace />}
+        element={
+          <Navigate to={isAuthenticated ? getHomePathForRole(currentUser?.role) : "/login"} replace />
+        }
       />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

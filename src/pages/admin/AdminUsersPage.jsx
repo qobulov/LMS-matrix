@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { adminApi } from "../../api/endpoints";
 import { useLms } from "../../data/LmsContext";
+import { normalizeLmsRole } from "../../utils/authRouting";
 
 function initials(name) {
   if (!name?.trim()) return "?";
@@ -12,7 +13,7 @@ function initials(name) {
     .toUpperCase();
 }
 
-const ROLES = ["all", "student", "instructor", "superadmin"];
+const ROLES = ["all", "student", "instructor", "director"];
 
 function mapUser(u) {
   if (!u || typeof u !== "object") return null;
@@ -20,7 +21,7 @@ function mapUser(u) {
     id: String(u.id),
     fullName: u.full_name ?? "",
     email: u.email ?? "",
-    role: u.role ?? "student",
+    role: normalizeLmsRole(u.role),
     avatar: u.avatar_url ?? "",
     status: u.status ?? "",
   };
@@ -96,7 +97,7 @@ export function AdminUsersPage() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold text-damiun-wordmark">Users</h1>
-        <p className="mt-1 text-sm text-damiun-muted">Roles and accounts (SuperAdmin).</p>
+        <p className="mt-1 text-sm text-damiun-muted">Roles and accounts (Director).</p>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">

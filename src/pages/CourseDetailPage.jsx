@@ -208,7 +208,7 @@ export function CourseDetailPage() {
     }
     setEnrolling(true);
     try {
-      await enrollmentApi.enroll({ course_id: course.id }, { token });
+      await enrollmentApi.enroll({ courses_id: course.id }, { token });
       toast.success("Enrolled");
       await loadEnrollment();
     } catch (err) {
@@ -226,7 +226,7 @@ export function CourseDetailPage() {
     try {
       const res = await reviewApi.create(
         {
-          course_id: course.id,
+          courses_id: course.id,
           rating: reviewRating,
           comment: reviewText.trim(),
         },

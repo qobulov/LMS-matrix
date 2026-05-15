@@ -10,7 +10,7 @@ export function AdminLayout() {
   return (
     <div className="admin-shell font-dm-sans">
       <aside className="admin-sidebar">
-        <p className="eyebrow">SuperAdmin Panel</p>
+        <p className="eyebrow">Director panel</p>
         <h3>LMS Control</h3>
         <nav className="admin-nav">
           {adminNav.map((item) => (

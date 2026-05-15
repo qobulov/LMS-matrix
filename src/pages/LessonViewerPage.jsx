@@ -126,7 +126,7 @@ export function LessonViewerPage() {
     setMarking(true);
     try {
       const res = await enrollmentApi.completeLesson(
-        { course_id: courseId, lesson_id: lesson.id },
+        { courses_id: courseId, lesson_id: lesson.id },
         { token },
       );
       const next = new Set((res.completed_lesson_ids ?? []).map(String));

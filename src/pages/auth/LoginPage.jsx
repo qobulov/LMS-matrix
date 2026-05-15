@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { authApi } from "../../api/endpoints";
 import TravelConnectSignIn from "../../components/ui/travel-connect-signin-1";
 import { useLms } from "../../data/LmsContext";
+import { getHomePathForRole } from "../../utils/authRouting";
 
 function normalizeLoginPayload({ email, password }) {
   return {
@@ -29,7 +30,7 @@ export function LoginPage() {
         const data = await authApi.login(payload);
         const user = applyGatewayAuth(data);
         toast.success(`Welcome back, ${user.fullName}!`);
-        navigate("/", { replace: true });
+        navigate(getHomePathForRole(user.role), { replace: true });
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Email yoki parol noto'g'ri";

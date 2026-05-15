@@ -141,7 +141,7 @@ export function QuizPage() {
       const spent = (quiz.timeLimitMin || 30) * 60 - timeLeft;
       const res = await quizApi.submitAttempt(
         {
-          course_id: courseId,
+          courses_id: courseId,
           quiz_id: quiz.id,
           answers: answersPayload,
           time_spent_sec: Math.max(0, spent),

@@ -2,12 +2,8 @@ import { Navigate } from "react-router-dom";
 import { useLms } from "../../data/LmsContext";
 import { getHomePathForRole } from "../../utils/authRouting";
 
-export function RequireRole({ allow, children }) {
+/** Sends authenticated user from `/` to their role home. */
+export function RoleRedirect() {
   const { role } = useLms();
-
-  if (!allow.includes(role)) {
-    return <Navigate to={getHomePathForRole(role)} replace />;
-  }
-
-  return children;
+  return <Navigate to={getHomePathForRole(role)} replace />;
 }

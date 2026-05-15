@@ -10,7 +10,7 @@
  * Dars (lesson): type "video" | "text" | "file"; video uchun odatda resourceUrl; matn uchun content.
  * Quiz: options[] + correctOptionIndexes (bitta to'g'ri javob indekslari).
  */
-export const roles = ["student", "instructor", "superadmin"];
+export const roles = ["student", "instructor", "director"];
 
 /** Ro'yxatdan login qilinadi (parol oddiy matn, faqat demo). Instructorlarda rating ixtiyoriy. */
 export const users = [
@@ -19,10 +19,10 @@ export const users = [
     fullName: "Nodir Rahmatov",
     email: "admin@lms.uz",
     password: "admin123",
-    role: "superadmin",
+    role: "director",
     avatar:
       "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=120&q=80",
-    bio: "Platform SuperAdmin",
+    bio: "Platform Director",
   },
   {
     id: "u-instructor-1",

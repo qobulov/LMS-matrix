@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { authApi } from "../../api/endpoints";
 import TravelConnectSignIn from "../../components/ui/travel-connect-signin-1";
 import { useLms } from "../../data/LmsContext";
+import { getHomePathForRole } from "../../utils/authRouting";
 
 export function RegisterPage() {
   const { applyGatewayAuth } = useLms();
@@ -47,7 +48,7 @@ export function RegisterPage() {
           role: chosenRole,
         });
         toast.success(`Welcome, ${user.fullName}!`);
-        navigate("/", { replace: true });
+        navigate(getHomePathForRole(user.role), { replace: true });
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Ro'yxatdan o'tish amalga oshmadi";

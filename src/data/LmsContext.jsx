@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { authApi, profileApi } from "../api/endpoints";
+import { normalizeLmsRole } from "../utils/authRouting";
 
 const LmsContext = createContext(null);
 
@@ -32,7 +33,7 @@ function mapProfileToUser(api) {
     id: String(api.id ?? ""),
     fullName: String(api.full_name ?? "").trim() || "User",
     email: String(api.email ?? "").trim().toLowerCase(),
-    role: api.role,
+    role: normalizeLmsRole(api.role),
     avatar: api.avatar_url ?? "",
     bio: api.bio ?? "",
     stats: api.stats ?? null,
@@ -64,7 +65,10 @@ function normalizeGatewayAuthPayload(raw, profileHints = {}) {
   const email = String(
     userObj?.email ?? profileHints.email ?? "",
   ).trim().toLowerCase();
-  const role = userObj?.role ?? profileHints.role ?? "student";
+  // Gateway puts `role` next to `user_data` / `token` (not always inside user_data).
+  const role = normalizeLmsRole(
+    raw.role ?? userObj?.role ?? profileHints.role ?? "student",
+  );
   const avatar = userObj?.avatar_url ?? profileHints.avatar ?? "";
   const bio = userObj?.bio ?? "";
 
@@ -100,7 +104,7 @@ function readInitialUser() {
   const s = readSession();
   if (!s?.user?.id) return null;
   if (s.userId != null && String(s.user.id) !== String(s.userId)) return null;
-  return s.user;
+  return { ...s.user, role: normalizeLmsRole(s.user.role) };
 }
 
 export function LmsProvider({ children }) {

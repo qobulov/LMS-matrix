@@ -36,7 +36,7 @@ function ProfileStat({ label, value, helper }) {
 const experienceCopy = {
   student: "Building practical skills through courses, quizzes, and certificates on the platform.",
   instructor: "Creating courses, structuring lessons, and supporting learners day to day.",
-  superadmin: `Overseeing users, content quality, and platform health on ${APP_NAME}.`,
+  director: `Overseeing users, content quality, and platform health on ${APP_NAME}.`,
 };
 
 export function ProfilePage() {
@@ -178,7 +178,7 @@ export function ProfilePage() {
         },
       ];
     }
-    if (role === "superadmin") {
+    if (role === "director") {
       return [
         { label: "Users", value: s.total_users ?? 0, helper: "Registered accounts" },
         { label: "Students", value: s.students ?? s.students_count ?? 0, helper: "Learner role" },
@@ -368,7 +368,7 @@ export function ProfilePage() {
                     </Link>
                   </>
                 )}
-                {role === "superadmin" && (
+                {role === "director" && (
                   <Link
                     to="/admin"
                     className="inline-flex items-center gap-2 rounded-full bg-damiun-primary px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-damiun-primary-hover"

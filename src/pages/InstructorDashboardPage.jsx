@@ -79,7 +79,7 @@ export function InstructorDashboardPage() {
     if (!token) return;
     try {
       const res = await courseApi.addModule(
-        { course_id: targetCourseId, title: moduleTitle.trim() },
+        { courses_id: targetCourseId, title: moduleTitle.trim() },
         { token },
       );
       const mod = res.module ?? res;
@@ -111,7 +111,7 @@ export function InstructorDashboardPage() {
     try {
       await courseApi.addLesson(
         {
-          course_id: lessonForm.courseId,
+          courses_id: lessonForm.courseId,
           module_id: lessonForm.moduleId,
           title: lessonForm.title.trim(),
           video_url:

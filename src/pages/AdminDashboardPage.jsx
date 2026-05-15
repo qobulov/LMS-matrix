@@ -57,7 +57,7 @@ export function AdminDashboardPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-bold text-damiun-wordmark">SuperAdmin overview</h1>
+        <h1 className="text-2xl font-bold text-damiun-wordmark">Director overview</h1>
         <p className="mt-1 text-sm text-damiun-muted">Finance summary and platform snapshot from the gateway.</p>
       </div>
 
@@ -128,7 +128,7 @@ export function AdminDashboardPage() {
         <h3 className="text-lg font-semibold text-damiun-wordmark">Platform snapshot</h3>
         <p className="mt-2 text-sm text-damiun-muted">Published courses: {publishedCourses}</p>
         <p className="mt-1 text-sm text-damiun-muted">Total courses in catalog: {totalCourses}</p>
-        <p className="mt-1 text-sm text-damiun-muted">Role-based access: student / instructor / superadmin</p>
+        <p className="mt-1 text-sm text-damiun-muted">Role-based access: student / instructor / director</p>
         <p className="mt-1 text-sm text-damiun-muted">Admin reports and users live in the sidebar.</p>
       </article>
     </div>
