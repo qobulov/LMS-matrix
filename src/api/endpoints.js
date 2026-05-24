@@ -33,6 +33,12 @@ export const courseApi = {
     callGateway("update_course", { courses_id: courseId, ...payload }, options),
   addModule: (payload, options) => callGateway("create_module", payload, options),
   addLesson: (payload, options) => callGateway("create_lesson", payload, options),
+  updateLesson: (courseId, lessonId, payload, options) =>
+    callGateway(
+      "update_lesson",
+      { courses_id: courseId, lesson_id: lessonId, ...payload },
+      options,
+    ),
 };
 
 export const enrollmentApi = {
@@ -55,7 +61,17 @@ export const quizApi = {
 };
 
 export const reviewApi = {
-  create: (payload, options) => callGateway("create_course_review", payload, options),
+  /** object_data: { courses_id, rating, comment } */
+  create: (courseId, { rating, comment }, options) =>
+    callGateway(
+      "create_course_review",
+      {
+        courses_id: courseId,
+        rating: Number(rating),
+        comment: String(comment ?? "").trim(),
+      },
+      options,
+    ),
 };
 
 export const adminApi = {

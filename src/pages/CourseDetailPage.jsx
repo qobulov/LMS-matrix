@@ -137,6 +137,7 @@ export function CourseDetailPage() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState("");
   const [enrolling, setEnrolling] = useState(false);
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   const loadCourse = useCallback(async () => {
     if (!courseId) return;
@@ -156,7 +157,7 @@ export function CourseDetailPage() {
     }
     const data = await enrollmentApi.myCourses({ token });
     const list = data.enrollments ?? [];
-    const row = list.find((e) => String(e.course?.id ?? e.course_id) === String(courseId));
+    const row = list.find((e) => String(e.course?.id ?? e.courses_id) === String(courseId));
     setEnrollment(row ? mapEnrollmentRow(row, courseId) : null);
   }, [getToken, courseId]);
 
@@ -218,20 +219,36 @@ export function CourseDetailPage() {
     }
   };
 
+  const canLeaveReview =
+    role === "student" &&
+    enrollment?.status === "completed" &&
+    isAuthenticated;
+
+  const userAlreadyReviewed = useMemo(() => {
+    if (!currentUser?.fullName || !course?.reviews?.length) return false;
+    const name = currentUser.fullName.trim().toLowerCase();
+    return course.reviews.some(
+      (r) => String(r.author ?? "").trim().toLowerCase() === name,
+    );
+  }, [course?.reviews, currentUser?.fullName]);
+
   const handleReviewSubmit = async (e) => {
     e.preventDefault();
     if (!course || !reviewText.trim()) return;
+    if (enrollment?.status !== "completed") {
+      toast.error("You can review only after completing the course");
+      return;
+    }
     const token = getToken();
     if (!token) return;
+    setSubmittingReview(true);
     try {
       const res = await reviewApi.create(
-        {
-          courses_id: course.id,
-          rating: reviewRating,
-          comment: reviewText.trim(),
-        },
+        course.id,
+        { rating: reviewRating, comment: reviewText.trim() },
         { token },
       );
+      const comment = reviewText.trim();
       setCourse((prev) => {
         if (!prev) return prev;
         const newRev = {
@@ -239,20 +256,23 @@ export function CourseDetailPage() {
           author: currentUser?.fullName ?? "You",
           rating: reviewRating,
           date: new Date().toISOString(),
-          text: reviewText.trim(),
+          text: comment,
         };
         return {
           ...prev,
           reviews: [newRev, ...(prev.reviews ?? [])],
-          rating: res.new_rating_avg ?? prev.rating,
-          reviewCount: res.review_count ?? (prev.reviewCount ?? 0) + 1,
+          rating: Number(res.new_rating_avg ?? res.rating_avg ?? prev.rating),
+          reviewCount: Number(res.review_count ?? (prev.reviewCount ?? 0) + 1),
         };
       });
       setReviewText("");
       setReviewRating(5);
       toast.success("Review submitted");
+      void loadCourse();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not submit review");
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
@@ -425,7 +445,13 @@ export function CourseDetailPage() {
                 </ul>
               )}
 
-              {role === "student" && enrollment?.status === "completed" && (
+              {role === "student" && enrollment?.status === "active" && (
+                <p className="mt-6 rounded-xl border border-amber-100 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+                  Finish the course to leave a review.
+                </p>
+              )}
+
+              {canLeaveReview && !userAlreadyReviewed && (
                 <form onSubmit={handleReviewSubmit} className="mt-6 space-y-3 rounded-xl border border-damiun-primary/20 bg-damiun-nav-tint/40 p-4">
                   <p className="text-sm font-semibold text-damiun-wordmark">Leave a review</p>
                   <label className="block text-xs font-medium text-damiun-muted">
@@ -455,11 +481,16 @@ export function CourseDetailPage() {
                   </label>
                   <button
                     type="submit"
-                    className="rounded-full bg-damiun-primary px-5 py-2 text-sm font-semibold text-white hover:bg-damiun-primary-hover"
+                    disabled={submittingReview}
+                    className="rounded-full bg-damiun-primary px-5 py-2 text-sm font-semibold text-white hover:bg-damiun-primary-hover disabled:opacity-60"
                   >
-                    Submit review
+                    {submittingReview ? "Submitting…" : "Submit review"}
                   </button>
                 </form>
+              )}
+
+              {canLeaveReview && userAlreadyReviewed && (
+                <p className="mt-6 text-sm text-damiun-muted">You have already reviewed this course.</p>
               )}
             </section>
           </div>

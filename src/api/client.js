@@ -81,6 +81,7 @@ export async function callGateway(method, objectData = {}, options = {}) {
       errBlock?.message ||
       errBlock?.data?.message ||
       errBlock?.error ||
+      payload?.error ||
       `Gateway error: ${response.status}`;
     throw new Error(message);
   }

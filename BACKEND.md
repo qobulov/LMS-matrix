@@ -65,7 +65,7 @@ CREATE TABLE courses (
 -- 5. COURSE_OBJECTIVES  ("What you'll learn")
 CREATE TABLE course_objectives (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  course_id  UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  courses_id  UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
   objective  TEXT NOT NULL,
   order_no   INT  NOT NULL DEFAULT 0
 );
@@ -73,7 +73,7 @@ CREATE TABLE course_objectives (
 -- 6. COURSE_REQUIREMENTS
 CREATE TABLE course_requirements (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  course_id   UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  courses_id   UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
   requirement TEXT NOT NULL,
   order_no    INT  NOT NULL DEFAULT 0
 );
@@ -81,7 +81,7 @@ CREATE TABLE course_requirements (
 -- 7. MODULES
 CREATE TABLE modules (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  course_id  UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  courses_id  UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
   title      VARCHAR(255) NOT NULL,
   order_no   INT  NOT NULL DEFAULT 0
 );
@@ -89,7 +89,7 @@ CREATE TABLE modules (
 -- 8. LESSONS  (faqat video)
 CREATE TABLE lessons (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  module_id    UUID NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
+  modules_id    UUID NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
   title        VARCHAR(255) NOT NULL,
   video_url    TEXT NOT NULL,   -- YouTube / Vimeo / CDN havolasi
   duration_min INT  NOT NULL DEFAULT 0,
@@ -100,13 +100,13 @@ CREATE TABLE lessons (
 -- 9. ENROLLMENTS
 CREATE TABLE enrollments (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  course_id        UUID NOT NULL REFERENCES courses(id),
+  courses_id        UUID NOT NULL REFERENCES courses(id),
   student_id       UUID NOT NULL REFERENCES users(id),
   status           VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active','completed','dropped')),
   progress_percent INT NOT NULL DEFAULT 0,
   enrolled_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   completed_at     TIMESTAMPTZ,
-  UNIQUE (course_id, student_id)
+  UNIQUE (courses_id, student_id)
 );
 
 -- 10. LESSON_PROGRESS
@@ -121,8 +121,8 @@ CREATE TABLE lesson_progress (
 -- 11. QUIZZES  (course bilan bog'liq, module ixtiyoriy)
 CREATE TABLE quizzes (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  course_id        UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
-  module_id        UUID REFERENCES modules(id),
+  courses_id        UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  modules_id        UUID REFERENCES modules(id),
   title            VARCHAR(255) NOT NULL,
   description      TEXT,
   time_limit_min   INT  NOT NULL DEFAULT 30,
@@ -180,12 +180,12 @@ CREATE TABLE certificates (
 -- 17. REVIEWS
 CREATE TABLE reviews (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  course_id   UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  courses_id   UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
   student_id  UUID NOT NULL REFERENCES users(id),
   rating      SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
   comment     TEXT,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (course_id, student_id)
+  UNIQUE (courses_id, student_id)
 );
 
 -- 18. PAYMENTS
@@ -201,7 +201,7 @@ CREATE TABLE payments (
 -- 19. INSTRUCTOR_PAYOUTS
 CREATE TABLE instructor_payouts (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  course_id      UUID NOT NULL REFERENCES courses(id),
+  courses_id      UUID NOT NULL REFERENCES courses(id),
   instructor_id  UUID NOT NULL REFERENCES users(id),
   amount         NUMERIC(12,2) NOT NULL DEFAULT 0,
   model          VARCHAR(20) NOT NULL DEFAULT 'percentage'
@@ -303,7 +303,7 @@ Bitta method bilan birdaniga bo'ladi; alternativ — 3 ta alohida method ham ish
 
 ```json
 // object_data
-{ "course_id": "..." }
+{ "courses_id": "..." }
 
 // response
 {
@@ -331,7 +331,7 @@ Bitta method bilan birdaniga bo'ladi; alternativ — 3 ta alohida method ham ish
 
 ```json
 // object_data
-{ "course_id": "..." }
+{ "courses_id": "..." }
 
 // response
 { "enrollment_id": "...", "status": "active" }
@@ -343,7 +343,7 @@ Bitta method bilan birdaniga bo'ladi; alternativ — 3 ta alohida method ham ish
 
 ```json
 // object_data
-{ "course_id": "...", "rating": 5, "comment": "..." }
+{ "courses_id": "...", "rating": 5, "comment": "..." }
 
 // response
 { "ok": true, "new_rating_avg": 4.8, "review_count": 215 }
@@ -355,7 +355,7 @@ Bitta method bilan birdaniga bo'ladi; alternativ — 3 ta alohida method ham ish
 
 ```json
 // object_data
-{ "course_id": "...", "lesson_id": "..." }
+{ "courses_id": "...", "lesson_id": "..." }
 
 // response
 {
@@ -372,7 +372,7 @@ Bitta method bilan birdaniga bo'ladi; alternativ — 3 ta alohida method ham ish
 
 ```json
 // object_data
-{ "course_id": "...", "lesson_id": "..." }
+{ "courses_id": "...", "lesson_id": "..." }
 
 // response
 { "progress_percent": 65, "status": "active", "completed_lesson_ids": [...] }
@@ -384,7 +384,7 @@ Bitta method bilan birdaniga bo'ladi; alternativ — 3 ta alohida method ham ish
 
 ```json
 // object_data
-{ "course_id": "..." }
+{ "courses_id": "..." }
 
 // response
 {
@@ -408,7 +408,7 @@ Bitta method bilan birdaniga bo'ladi; alternativ — 3 ta alohida method ham ish
 ```json
 // object_data
 {
-  "course_id": "...",
+  "courses_id": "...",
   "quiz_id": "...",
   "answers": [
     { "question_id": "...", "selected_option_ids": ["opt-id-1"] }
@@ -575,7 +575,7 @@ Superadmin/instructor uchun: barcha foydalanuvchilar sertifikatlarini ko'rishi u
 
 ```json
 // object_data
-{ "course_id": "...", "title": "Module nomi" }
+{ "courses_id": "...", "title": "Module nomi" }
 
 // response
 { "module": { "id", "title", "order_no" } }
@@ -588,8 +588,8 @@ Superadmin/instructor uchun: barcha foydalanuvchilar sertifikatlarini ko'rishi u
 ```json
 // object_data
 {
-  "course_id": "...",
-  "module_id": "...",
+  "courses_id": "...",
+  "modules_id": "...",
   "title": "...",
   "video_url": "https://youtube.com/...",
   "duration_min": 15,
@@ -846,10 +846,10 @@ Response: { courses: [...], total, page, page_size }
 Kurs elementi: { id, title, cover_image, category, difficulty, rating_avg, duration_hours, lesson_count, price, language }
 
 #### get_course_details
-Public. object_data: { course_id }
+Public. object_data: { courses_id }
 Logika:
   - courses + instructor (users JOIN) + modules + lessons (ORDER BY order_no) +
-    final quiz (quizzes WHERE module_id IS NULL LIMIT 1) + reviews (10 ta so'nggi)
+    final quiz (quizzes WHERE modules_id IS NULL LIMIT 1) + reviews (10 ta so'nggi)
 Response:
   {
     id, title, cover_image, category, difficulty, language, price, duration_hours,
@@ -873,14 +873,14 @@ Logika:
 Response: { course: { id, title, status } }
 
 #### create_module
-Role: instructor (o'z kursi). object_data: { course_id, title }
+Role: instructor (o'z kursi). object_data: { courses_id, title }
 Logika:
   - courses.instructor_id == token.user_id tekshiriladi
   - order_no = MAX(order_no)+1 shu kurs modullari ichida
 Response: { module: { id, title, order_no } }
 
 #### create_lesson
-Role: instructor (o'z kursi). object_data: { course_id, module_id, title, video_url, duration_min, is_preview }
+Role: instructor (o'z kursi). object_data: { courses_id, modules_id, title, video_url, duration_min, is_preview }
 Logika:
   - module courses.instructor_id orqali ownership tekshiriladi
   - order_no = MAX(order_no)+1 shu modul darslarida
@@ -892,7 +892,7 @@ Response: { lesson: { id, title, video_url, duration_min, order_no } }
 ### ENROLLMENT VA PROGRESS
 
 #### enroll_course
-Role: student. object_data: { course_id }
+Role: student. object_data: { courses_id }
 Logika:
   1. Allaqachon enrollment bormi tekshiriladi
   2. enrollments INSERT (status='active', progress_percent=0)
@@ -916,7 +916,7 @@ Response:
   }] }
 
 #### get_lesson_viewer
-Role: student (yoki is_preview=true bo'lsa public). object_data: { course_id, lesson_id }
+Role: student (yoki is_preview=true bo'lsa public). object_data: { courses_id, lesson_id }
 Logika:
   - lesson topiladi; is_preview=false bo'lsa enrollment tekshiriladi
   - completed_lesson_ids: lesson_progress WHERE enrollment_id
@@ -929,7 +929,7 @@ Response:
   }
 
 #### log_lesson_progress
-Role: student. object_data: { course_id, lesson_id }
+Role: student. object_data: { courses_id, lesson_id }
 Logika:
   1. enrollment topiladi (student + course)
   2. lesson_progress INSERT (ON CONFLICT DO NOTHING)
@@ -942,9 +942,9 @@ Response: { progress_percent, status, completed_lesson_ids: [uuid] }
 ### QUIZ
 
 #### get_quiz
-Role: student (enrollment kerak). object_data: { course_id }
+Role: student (enrollment kerak). object_data: { courses_id }
 Logika:
-  - quizzes WHERE course_id AND module_id IS NULL (final quiz)
+  - quizzes WHERE courses_id AND modules_id IS NULL (final quiz)
   - quiz_questions + quiz_options (is_correct frontga KELMAYDI)
   - attempts: quiz_attempts WHERE student_id ORDER BY submitted_at DESC
 Response:
@@ -958,7 +958,7 @@ Response:
 
 #### submit_quiz_attempt
 Role: student. object_data:
-  { course_id, quiz_id, answers: [{ question_id, selected_option_ids: [uuid] }], time_spent_sec }
+  { courses_id, quiz_id, answers: [{ question_id, selected_option_ids: [uuid] }], time_spent_sec }
 Logika:
   1. max_attempts tekshiriladi (COUNT existing attempts)
   2. Har savol uchun: quiz_options.is_correct bilan selected_option_ids taqqoslanadi
