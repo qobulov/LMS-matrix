@@ -434,7 +434,7 @@ export function CourseDetailPage() {
                 <ul className="mt-4 space-y-4">
                   {course.reviews.map((r) => (
                     <li key={r.id} className="rounded-xl border border-gray-100 p-4">
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div>
                         <span className="font-semibold">{r.author}</span>
                         <span className="text-amber-600">{"★".repeat(r.rating)}</span>
                         <span className="text-xs text-damiun-muted">{formatDate(r.date)}</span>

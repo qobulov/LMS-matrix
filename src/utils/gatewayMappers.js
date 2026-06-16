@@ -58,11 +58,12 @@ export function mapCourseDetail(raw) {
         questions: [],
       }
     : null;
-  const reviews = (raw.reviews ?? []).map((r) => ({
-    id: String(r.id),
-    author: r.author ?? "",
+  const reviews = (raw.reviews ?? []).map((r, idx) => ({
+    id: String(r.id ?? idx),
+    author: r.user?.full_name ?? r.author ?? "",
+    avatar: r.user?.avatar_url ?? "",
     rating: r.rating ?? 0,
-    date: r.date ?? "",
+    date: r.created_at ?? r.date ?? "",
     text: r.comment ?? r.text ?? "",
   }));
   return {
