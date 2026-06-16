@@ -11,6 +11,7 @@ export const profileApi = {
   me: (options) => callGateway("get_user_profile", {}, options),
   update: (payload, options) => callGateway("update_profile", payload, options),
   getMyRewards: (options) => callGateway("get_my_rewards", {}, options),
+  getBalance: (options) => callGateway("get_balance", {}, options),
 };
 
 export const homeApi = {
@@ -69,6 +70,14 @@ export const adminApi = {
     callGateway("get_finance_summary", filters, options),
   getUsers: (filters = {}, options) => callGateway("get_users", filters, options),
   getReports: (filters = {}, options) => callGateway("get_reports", filters, options),
+  getBalance: (options) =>
+    callGateway("get_balance", {}, options),
+  getInstructors: (options) =>
+    callGateway("get_instructors", {}, options),
+  getInstructorPayouts: (filters = {}, options) =>
+    callGateway("get_instructor_payouts", filters, options),
+  createPayout: (payload, options) =>
+    callGateway("create_instructor_payout", payload, options),
 };
 
 export const certificateApi = {

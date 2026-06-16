@@ -24,6 +24,7 @@ import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { AdminReportsPage } from "./pages/admin/AdminReportsPage";
 import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
+import { TeacherPayoutPage } from "./pages/admin/TeacherPayoutPage";
 import { InstructorCoursesPage } from "./pages/instructor/InstructorCoursesPage";
 
 function App() {
@@ -158,6 +159,7 @@ function App() {
           <Route index element={<AdminDashboardPage />} />
           <Route path="reports" element={<AdminReportsPage />} />
           <Route path="users" element={<AdminUsersPage />} />
+          <Route path="payouts" element={<TeacherPayoutPage />} />
         </Route>
       </Route>
 

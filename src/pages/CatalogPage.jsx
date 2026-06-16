@@ -35,7 +35,7 @@ function CourseCard({ course }) {
           <span className="rounded-full bg-damiun-nav-tint px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-damiun-primary">
             {course.category}
           </span>
-          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium capitalize text-gray-600">
+          <span>
             {course.difficulty}
           </span>
         </div>

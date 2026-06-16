@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowRight, BookOpen, Layers, PlusCircle, Users } from "lucide-react";
 import { Link } from "react-router-dom";
-import { courseApi } from "../api/endpoints";
+import { courseApi, profileApi } from "../api/endpoints";
 import { StatCard } from "../components/ui/StatCard";
 import { useLms } from "../data/LmsContext";
 import { mapInstructorCourse } from "../utils/instructorMappers";
+import { formatPrice } from "../utils/format";
 
 export function InstructorDashboardPage() {
   const { getToken, currentUser } = useLms();
@@ -12,6 +13,7 @@ export function InstructorDashboardPage() {
   const [totalStudents, setTotalStudents] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [balance, setBalance] = useState(null);
 
   const load = useCallback(async () => {
     const token = getToken();
@@ -43,6 +45,14 @@ export function InstructorDashboardPage() {
       cancelled = true;
     };
   }, [load]);
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    profileApi.getBalance({ token }).then((data) => {
+      setBalance(Number(data.balance ?? 0));
+    }).catch(() => {});
+  }, [getToken]);
 
   const stats = useMemo(() => {
     const published = myCourses.filter((c) => c.status === "published").length;
@@ -98,6 +108,9 @@ export function InstructorDashboardPage() {
       </div>
 
       <div className="stats-grid">
+        {balance !== null && (
+          <StatCard label="Balance" value={formatPrice(balance)} helper="Sizning hisobingiz" />
+        )}
         <StatCard label="My courses" value={myCourses.length} helper="Created by you" />
         <StatCard label="Total students" value={totalStudents} helper="Across all courses" />
         <StatCard label="Published" value={stats.published} helper={`${stats.drafts} draft`} />

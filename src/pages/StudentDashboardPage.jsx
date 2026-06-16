@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Award, BookOpen, ClipboardList } from "lucide-react";
-import { enrollmentApi } from "../api/endpoints";
+import { Award, BookOpen, ClipboardList, Wallet } from "lucide-react";
+import { enrollmentApi, profileApi } from "../api/endpoints";
 import { StatCard } from "../components/ui/StatCard";
 import { useLms } from "../data/LmsContext";
 import { mapEnrollmentFromApi } from "../utils/gatewayMappers";
-import { formatDate } from "../utils/format";
+import { formatDate, formatPrice } from "../utils/format";
 
 export function StudentDashboardPage() {
   const { getToken } = useLms();
   const [enrollments, setEnrollments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [balance, setBalance] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,6 +41,14 @@ export function StudentDashboardPage() {
     return () => {
       cancelled = true;
     };
+  }, [getToken]);
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    profileApi.getBalance({ token }).then((data) => {
+      setBalance(Number(data.balance ?? 0));
+    }).catch(() => {});
   }, [getToken]);
 
   const stats = useMemo(() => {
@@ -101,6 +110,9 @@ export function StudentDashboardPage() {
       </div>
 
       <div className="stats-grid">
+        {balance !== null && (
+          <StatCard label="Balance" value={formatPrice(balance)} helper="Hisobingizdagi mablag'" />
+        )}
         <StatCard label="Enrolled" value={stats.enrolled} helper="Total courses" />
         <StatCard label="Active" value={stats.active} helper="In progress" />
         <StatCard label="Completed" value={stats.completed} helper="Finished" />

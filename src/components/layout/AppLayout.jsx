@@ -1,9 +1,9 @@
+import { useEffect, useRef, useState } from "react";
 import {
   Award,
   BarChart2,
   Bell,
   BookOpen,
-  CalendarDays,
   FileText,
   Gift,
   Layers,
@@ -14,6 +14,7 @@ import {
   ShoppingBag,
   User,
   Users,
+  Wallet,
 } from "lucide-react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { APP_NAME } from "../../constants/branding";
@@ -33,6 +34,7 @@ function getNavForRole(role) {
         { to: "/admin", label: "Overview", icon: BarChart2, end: true },
         { to: "/admin/reports", label: "Reports", icon: FileText },
         { to: "/admin/users", label: "Users", icon: Users },
+        { to: "/admin/payouts", label: "Payouts", icon: Wallet },
         { to: "/profile", label: "Profile", icon: User },
       ];
     case "student":
@@ -55,6 +57,19 @@ export function AppLayout() {
   if (location.pathname.startsWith("/courses/")) {
     return <Outlet />;
   }
+
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setNotifOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const navItems = getNavForRole(role);
 
@@ -153,20 +168,22 @@ export function AppLayout() {
             >
               <ShoppingBag size={20} />
             </button>
-            <button
-              type="button"
-              className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100"
-              aria-label="Calendar"
-            >
-              <CalendarDays size={20} />
-            </button>
-            <button
-              type="button"
-              className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100"
-              aria-label="Notifications"
-            >
-              <Bell size={20} />
-            </button>
+            <div className="relative" ref={notifRef}>
+              <button
+                type="button"
+                onClick={() => setNotifOpen((v) => !v)}
+                className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100"
+                aria-label="Notifications"
+              >
+                <Bell size={20} />
+              </button>
+              {notifOpen && (
+                <div className="absolute right-0 top-12 z-50 w-80 rounded-xl border border-gray-100 bg-white p-4 shadow-lg">
+                  <p className="text-sm font-semibold text-gray-800">Notifications</p>
+                  <p className="mt-3 text-center text-sm text-gray-400">No notifications yet.</p>
+                </div>
+              )}
+            </div>
           </div>
 
           <Link

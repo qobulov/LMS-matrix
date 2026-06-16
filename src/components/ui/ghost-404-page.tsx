@@ -3,6 +3,7 @@
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FlowButton } from '@/components/ui/flow-button';
+import notFoundImg from '@/assets/images/image.png';
 
 const containerVariants = {
   hidden: {
@@ -102,71 +103,29 @@ const ghostVariants = {
 
 export function NotFoundGhost() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4">
+    <div className="flex min-h-screen items-center justify-center bg-white">
       <AnimatePresence mode="wait">
         <motion.div
-          className="text-center"
+          className="relative"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
           exit="hidden"
         >
-          <div className="mb-8 flex items-center justify-center gap-4 md:mb-12 md:gap-6">
-            <motion.span
-              className="font-signika select-none text-[80px] font-bold text-[#222222] opacity-70 md:text-[120px]"
-              variants={numberVariants}
-              custom={-1}
-            >
-              4
-            </motion.span>
-            <motion.div
-              variants={ghostVariants}
-              whileHover="hover"
-              animate={['visible', 'floating']}
-            >
-              <img
-                src="https://xubohuah.github.io/xubohua.top/Group.png"
-                alt="Ghost"
-                className="h-[80px] w-[80px] select-none object-contain md:h-[120px] md:w-[120px]"
-                draggable="false"
-              />
-            </motion.div>
-            <motion.span
-              className="font-signika select-none text-[80px] font-bold text-[#222222] opacity-70 md:text-[120px]"
-              variants={numberVariants}
-              custom={1}
-            >
-              4
-            </motion.span>
-          </div>
-
-          <motion.h1
-            className="font-dm-sans mb-4 select-none text-3xl font-bold text-[#222222] opacity-70 md:mb-6 md:text-5xl"
-            variants={itemVariants}
+          <motion.div
+            variants={ghostVariants}
+            animate={['visible', 'floating']}
+            className="relative"
           >
-            Boo! Page missing!
-          </motion.h1>
-
-          <motion.p
-            className="font-dm-sans mb-8 select-none text-lg text-[#222222] opacity-50 md:mb-12 md:text-xl"
-            variants={itemVariants}
-          >
-            Whoops! This page must be a ghost - it&apos;s not here!
-          </motion.p>
-
-          <motion.div variants={itemVariants}>
-            <Link to="/" className="inline-block">
-              <FlowButton text="Find shelter" />
-            </Link>
-          </motion.div>
-
-          <motion.div className="mt-12" variants={itemVariants}>
-            <Link
-              to="/"
-              className="font-dm-sans select-none text-[#222222] opacity-50 transition-opacity hover:opacity-70"
-            >
-              Back to home
-            </Link>
+            <img
+              src={notFoundImg}
+              alt="404"
+              className="h-screen w-auto select-none object-contain"
+              draggable="false"
+            />
+            <div className="absolute left-1/2 top-[48%] -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-white/20 bg-white/50 px-14 py-6 backdrop-blur-lg">
+              <p className="text-2xl font-medium text-rose-400 md:text-3xl">404 Not Found</p>
+            </div>
           </motion.div>
         </motion.div>
       </AnimatePresence>
