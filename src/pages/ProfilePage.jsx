@@ -360,6 +360,10 @@ export function ProfilePage() {
                       <LayoutDashboard className="h-4 w-4 text-damiun-primary" />
                       Dashboard
                     </Link>
+                    <Link to="/instructor/courses" className={shortcutBtn}>
+                      <BookOpen className="h-4 w-4 text-damiun-primary" />
+                      Course builder
+                    </Link>
                     <Link
                       to="/instructor/create-course"
                       className="inline-flex items-center gap-2 rounded-full bg-damiun-primary px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-damiun-primary-hover"

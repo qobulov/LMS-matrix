@@ -18,12 +18,13 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { PublicVerifyPage } from "./pages/PublicVerifyPage";
 import { QuizPage } from "./pages/QuizPage";
+import { RewardsPage } from "./pages/RewardsPage";
 import { StudentDashboardPage } from "./pages/StudentDashboardPage";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { AdminReportsPage } from "./pages/admin/AdminReportsPage";
 import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
-import { RewardsPage } from "./pages/RewardsPage";
+import { InstructorCoursesPage } from "./pages/instructor/InstructorCoursesPage";
 
 function App() {
   const { isAuthenticated, authReady, currentUser } = useLms();
@@ -126,6 +127,22 @@ function App() {
           element={
             <RequireRole allow={["instructor"]}>
               <CreateCoursePage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/instructor/courses"
+          element={
+            <RequireRole allow={["instructor"]}>
+              <InstructorCoursesPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/instructor/courses/:courseId"
+          element={
+            <RequireRole allow={["instructor"]}>
+              <InstructorCoursesPage />
             </RequireRole>
           }
         />

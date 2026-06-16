@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Formula Admin — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --g:#2CC87A; --gd:#00563B; --gl:#E6F9EF; --g2:#E6F9EF;
+  --bg:#F4F6F9; --card:#fff; --bdr:#E5E7EB;
+  --txt:#111827; --sub:#6B7280; --muted:#9CA3AF;
+  --sidebar-w:220px;
+  --blue:#3B82F6; --blue-l:#EFF6FF;
+  --purple:#8B5CF6; --purp-l:#F5F3FF;
+  --amber:#F59E0B; --amb-l:#FFFBEB;
+  --red:#EF4444; --red-l:#FEF2F2;
+  --emer:#10B981; --emer-l:#ECFDF5;
+  --orange:#F97316; --orange-l:#FFF7ED;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;display:flex}
+
+/* SIDEBAR */
+.sidebar{width:var(--sidebar-w);min-height:100vh;background:#fff;border-right:1px solid var(--bdr);display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:10px}
+.logo-icon{width:32px;height:32px;background:var(--g);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-icon svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round}
+.logo-name{font-size:14px;font-weight:700;color:var(--txt)}
+.logo-sub{font-size:11px;color:var(--sub);margin-top:1px}
+.nav{padding:10px 8px;flex:1}
+.nav-section{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);padding:8px 10px 4px;margin-top:6px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:8px;font-size:13px;font-weight:500;color:var(--sub);cursor:pointer;transition:all .15s;margin-bottom:1px;border:none;background:none;width:100%;font-family:inherit;text-align:left}
+.nav-item:hover{background:var(--bg);color:var(--txt)}
+.nav-item.active{background:var(--gl);color:var(--gd);font-weight:600}
+.nav-item svg{width:15px;height:15px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav-badge{margin-left:auto;background:var(--bg);color:var(--sub);font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:50px;min-width:20px;text-align:center}
+.nav-item.active .nav-badge{background:var(--g);color:#fff}
+
+/* MAIN */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+
+/* TOPBAR */
+.topbar{background:#fff;border-bottom:1px solid var(--bdr);padding:0 28px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+.topbar-title{font-size:16px;font-weight:700;color:var(--txt)}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.date-pill{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--bdr);border-radius:8px;padding:6px 12px;font-size:12.5px;color:var(--sub);font-weight:500}
+.date-pill svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+.refresh-btn{width:34px;height:34px;border:1px solid var(--bdr);border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--sub);transition:all .15s}
+.refresh-btn:hover{background:var(--bg)}
+.refresh-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+.period-tabs{display:flex;background:var(--bg);border-radius:8px;padding:3px;gap:2px}
+.period-tab{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--sub);font-family:inherit;transition:all .15s}
+.period-tab.active{background:#fff;color:var(--txt);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+
+/* PAGE */
+.page{padding:24px 28px;display:flex;flex-direction:column;gap:20px}
+
+/* KPI ROW */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.kpi-card{background:#fff;border:1px solid var(--bdr);border-radius:14px;padding:18px 20px;display:flex;flex-direction:column;gap:12px;position:relative;overflow:hidden}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0}
+.kpi-card.green::before{background:var(--g)}
+.kpi-card.blue::before{background:var(--blue)}
+.kpi-card.purple::before{background:var(--purple)}
+.kpi-card.amber::before{background:var(--amber)}
+.kpi-top{display:flex;align-items:center;justify-content:space-between}
+.kpi-label{font-size:12.5px;font-weight:600;color:var(--sub)}
+.kpi-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center}
+.kpi-icon svg{width:17px;height:17px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.kpi-val{font-size:26px;font-weight:800;color:var(--txt);line-height:1}
+.kpi-sub{display:flex;align-items:center;gap:6px;font-size:12px}
+.kpi-trend{display:flex;align-items:center;gap:3px;font-weight:600;font-size:12px;padding:2px 7px;border-radius:50px}
+.kpi-trend.up{background:var(--gl);color:var(--gd)}
+.kpi-trend.up svg{width:11px;height:11px;stroke:var(--gd);fill:none;stroke-width:2.5;stroke-linecap:round}
+.kpi-trend.down{background:var(--red-l);color:var(--red)}
+.kpi-trend.down svg{width:11px;height:11px;stroke:var(--red);fill:none;stroke-width:2.5;stroke-linecap:round}
+.kpi-trend-lbl{color:var(--muted)}
+
+/* GRID */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid-3{display:grid;grid-template-columns:3fr 2fr;gap:14px}
+.grid-32{display:grid;grid-template-columns:2fr 3fr;gap:14px}
+
+/* CARD */
+.card{background:#fff;border:1px solid var(--bdr);border-radius:14px;overflow:hidden}
+.card-header{padding:16px 20px 14px;display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid var(--bdr)}
+.card-title{font-size:14px;font-weight:700;color:var(--txt)}
+.card-sub{font-size:12px;color:var(--sub);margin-top:2px}
+.card-body{padding:18px 20px}
+.card-body.no-pad{padding:0}
+.card-footer{padding:12px 20px;border-top:1px solid var(--bdr);background:#FAFBFC}
+
+/* BADGE */
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:50px;font-size:11.5px;font-weight:600}
+.badge-green{background:var(--gl);color:var(--gd)}
+.badge-blue{background:var(--blue-l);color:var(--blue)}
+.badge-purple{background:var(--purp-l);color:var(--purple)}
+.badge-amber{background:var(--amb-l);color:#92400E}
+.badge-red{background:var(--red-l);color:var(--red)}
+.badge-gray{background:var(--bg);color:var(--sub)}
+.badge-orange{background:var(--orange-l);color:var(--orange)}
+
+/* MINI CHART — SPARKLINE */
+.sparkline-wrap{margin-top:6px}
+.sparkline-labels{display:flex;justify-content:space-between;margin-top:4px}
+.sparkline-label{font-size:10.5px;color:var(--muted)}
+
+/* BAR CHART */
+.bar-chart{display:flex;align-items:flex-end;gap:6px;height:80px;padding-bottom:2px}
+.bar-col{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1}
+.bar{border-radius:4px 4px 0 0;width:100%;min-height:4px;transition:opacity .15s}
+.bar:hover{opacity:.8}
+.bar-lbl{font-size:10px;color:var(--muted);font-weight:500}
+
+/* DONUT */
+.donut-wrap{display:flex;align-items:center;gap:20px}
+.donut-legend{display:flex;flex-direction:column;gap:8px;flex:1}
+.donut-leg-item{display:flex;align-items:center;gap:8px}
+.donut-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.donut-leg-name{font-size:12.5px;color:var(--sub);flex:1}
+.donut-leg-val{font-size:12.5px;font-weight:700;color:var(--txt)}
+.donut-pct{font-size:11px;color:var(--muted)}
+
+/* PROGRESS BAR */
+.progress-bar{height:6px;background:var(--bg);border-radius:50px;overflow:hidden;margin-top:5px}
+.progress-fill{height:100%;border-radius:50px}
+
+/* TABLE */
+.mini-table{width:100%;border-collapse:collapse}
+.mini-table th{padding:9px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--sub);letter-spacing:.4px;text-transform:uppercase;background:#FAFBFC;border-bottom:1px solid var(--bdr)}
+.mini-table td{padding:11px 16px;font-size:13px;color:var(--txt);border-bottom:1px solid var(--bdr);vertical-align:middle}
+.mini-table tr:last-child td{border-bottom:none}
+.mini-table tr:hover td{background:#FAFCFF}
+
+/* USER ROW */
+.user-row{display:flex;align-items:center;gap:10px}
+.avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;color:#fff;flex-shrink:0}
+.user-name{font-size:13px;font-weight:600;color:var(--txt);line-height:1.2}
+.user-phone{font-size:11.5px;color:var(--muted)}
+
+/* STAT INLINE */
+.stat-inline{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--bdr)}
+.stat-inline:last-child{border-bottom:none;padding-bottom:0}
+.stat-inline:first-child{padding-top:0}
+.stat-inline-label{font-size:13px;color:var(--sub);display:flex;align-items:center;gap:7px}
+.stat-inline-label svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;flex-shrink:0}
+.stat-inline-val{font-size:14px;font-weight:700;color:var(--txt)}
+
+/* ALERT STRIP */
+.alert-strip{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:9px;font-size:12.5px;font-weight:500;margin-bottom:12px}
+.alert-strip svg{width:15px;height:15px;fill:none;stroke-width:2;stroke-linecap:round;flex-shrink:0}
+.alert-warn{background:var(--amb-l);color:#92400E;border:1px solid #FDE68A}
+.alert-warn svg{stroke:#92400E}
+.alert-info{background:var(--blue-l);color:var(--blue);border:1px solid #BFDBFE}
+.alert-info svg{stroke:var(--blue)}
+
+/* DIVIDER */
+.divider{height:1px;background:var(--bdr)}
+
+/* SECTION TITLE */
+.section-title{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px}
+
+/* MENTOR ROW */
+.mentor-status{display:flex;align-items:center;gap:5px}
+.status-dot{width:7px;height:7px;border-radius:50%}
+
+/* GOAL ROW */
+.goal-row{margin-bottom:14px}
+.goal-row:last-child{margin-bottom:0}
+.goal-row-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+.goal-name{font-size:13px;color:var(--sub);font-weight:500}
+.goal-val{font-size:13px;font-weight:700;color:var(--txt)}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.5 9.5 5 13 5 16a7 7 0 0014 0c0-3-1.5-6.5-7-14z"/></svg>
+    </div>
+    <div><div class="logo-name">Formula</div><div class="logo-sub">Admin Panel</div></div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Главная</div>
+    <button class="nav-item active">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </button>
+    <div class="nav-section">Пользователи</div>
+    <button class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      Пользователи <span class="nav-badge">111</span>
+    </button>
+    <button class="nav-item">
+      <svg viewBox="0 0 24 24"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>
+      Активность
+    </button>
+    <button class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      Достижения
+    </button>
+    <div class="nav-section">Курсы</div>
+    <button class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+      Курсы <span class="nav-badge">4</span>
+    </button>
+    <button class="nav-item">
+      <svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+      Уроки <span class="nav-badge">43</span>
+    </button>
+    <button class="nav-item">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+      Прогресс
+    </button>
+    <div class="nav-section">Подписки</div>
+    <button class="nav-item">
+      <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+      Тарифы
+    </button>
+    <button class="nav-item">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+      Транзакции
+    </button>
+    <div class="nav-section">Питание</div>
+    <button class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+      Продукты питания
+    </button>
+  </nav>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-title">Dashboard</div>
+    <div class="topbar-right">
+      <div class="period-tabs">
+        <button class="period-tab">Неделя</button>
+        <button class="period-tab active">Месяц</button>
+        <button class="period-tab">Год</button>
+      </div>
+      <div class="date-pill">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Май 2026
+      </div>
+      <div class="refresh-btn">
+        <svg viewBox="0 0 24 24"><polyline points="23,4 23,10 17,10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="page">
+
+    <!-- KPI ROW -->
+    <div class="kpi-row">
+
+      <div class="kpi-card green">
+        <div class="kpi-top">
+          <span class="kpi-label">Пользователи</span>
+          <div class="kpi-icon" style="background:var(--gl)">
+            <svg style="stroke:var(--gd)" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+          </div>
+        </div>
+        <div class="kpi-val">111</div>
+        <div class="kpi-sub">
+          <span class="kpi-trend up"><svg viewBox="0 0 24 24"><polyline points="18,15 12,9 6,15"/></svg>+14</span>
+          <span class="kpi-trend-lbl">за месяц</span>
+        </div>
+      </div>
+
+      <div class="kpi-card blue">
+        <div class="kpi-top">
+          <span class="kpi-label">Активных сегодня</span>
+          <div class="kpi-icon" style="background:var(--blue-l)">
+            <svg style="stroke:var(--blue)" viewBox="0 0 24 24"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>
+          </div>
+        </div>
+        <div class="kpi-val">34</div>
+        <div class="kpi-sub">
+          <span class="kpi-trend up"><svg viewBox="0 0 24 24"><polyline points="18,15 12,9 6,15"/></svg>+8</span>
+          <span class="kpi-trend-lbl">vs вчера</span>
+        </div>
+      </div>
+
+      <div class="kpi-card purple">
+        <div class="kpi-top">
+          <span class="kpi-label">Покупок курсов</span>
+          <div class="kpi-icon" style="background:var(--purp-l)">
+            <svg style="stroke:var(--purple)" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+          </div>
+        </div>
+        <div class="kpi-val">28</div>
+        <div class="kpi-sub">
+          <span class="kpi-trend up"><svg viewBox="0 0 24 24"><polyline points="18,15 12,9 6,15"/></svg>+6</span>
+          <span class="kpi-trend-lbl">за месяц</span>
+        </div>
+      </div>
+
+      <div class="kpi-card amber">
+        <div class="kpi-top">
+          <span class="kpi-label">Доход за месяц</span>
+          <div class="kpi-icon" style="background:var(--amb-l)">
+            <svg style="stroke:var(--amber)" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+          </div>
+        </div>
+        <div class="kpi-val">4.8M</div>
+        <div class="kpi-sub">
+          <span class="kpi-trend up"><svg viewBox="0 0 24 24"><polyline points="18,15 12,9 6,15"/></svg>+18%</span>
+          <span class="kpi-trend-lbl">vs прошлый месяц</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ROW 2: Users chart + Plans breakdown -->
+    <div class="grid-3">
+
+      <!-- Users card -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Новые пользователи</div>
+            <div class="card-sub">За последние 7 дней</div>
+          </div>
+          <span class="badge badge-green">+14 за месяц</span>
+        </div>
+        <div class="card-body">
+          <!-- Bar chart: new users per day -->
+          <div class="bar-chart">
+            <div class="bar-col">
+              <div class="bar" style="height:40%;background:var(--gl);border:1.5px solid #B6EDD3"></div>
+              <span class="bar-lbl">16</span>
+            </div>
+            <div class="bar-col">
+              <div class="bar" style="height:55%;background:var(--gl);border:1.5px solid #B6EDD3"></div>
+              <span class="bar-lbl">17</span>
+            </div>
+            <div class="bar-col">
+              <div class="bar" style="height:30%;background:var(--gl);border:1.5px solid #B6EDD3"></div>
+              <span class="bar-lbl">18</span>
+            </div>
+            <div class="bar-col">
+              <div class="bar" style="height:70%;background:var(--g)"></div>
+              <span class="bar-lbl">19</span>
+            </div>
+            <div class="bar-col">
+              <div class="bar" style="height:50%;background:var(--g)"></div>
+              <span class="bar-lbl">20</span>
+            </div>
+            <div class="bar-col">
+              <div class="bar" style="height:85%;background:var(--g)"></div>
+              <span class="bar-lbl">21</span>
+            </div>
+            <div class="bar-col">
+              <div class="bar" style="height:60%;background:var(--g)"></div>
+              <span class="bar-lbl">22</span>
+            </div>
+          </div>
+
+          <div class="divider" style="margin:16px 0"></div>
+
+          <div>
+            <div class="stat-inline">
+              <span class="stat-inline-label">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0112 0v2"/></svg>
+                Всего зарегистрировано
+              </span>
+              <span class="stat-inline-val">111</span>
+            </div>
+            <div class="stat-inline">
+              <span class="stat-inline-label">
+                <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                Активных (30 дней)
+              </span>
+              <span class="stat-inline-val">68</span>
+            </div>
+            <div class="stat-inline">
+              <span class="stat-inline-label">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Не открывали приложение 14+ дней
+              </span>
+              <span class="stat-inline-val" style="color:var(--amber)">19</span>
+            </div>
+            <div class="stat-inline">
+              <span class="stat-inline-label">
+                <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+                Новых за месяц
+              </span>
+              <span class="stat-inline-val" style="color:var(--gd)">14</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Plans card -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Тарифы</div>
+            <div class="card-sub">Активные подписки</div>
+          </div>
+          <span class="badge badge-gray">62 активных</span>
+        </div>
+        <div class="card-body">
+          <!-- Donut SVG -->
+          <div class="donut-wrap" style="margin-bottom:18px">
+            <svg width="90" height="90" viewBox="0 0 90 90" style="flex-shrink:0">
+              <!-- Total bg circle -->
+              <circle cx="45" cy="45" r="35" fill="none" stroke="var(--bg)" stroke-width="12"/>
+              <!-- Premium: 35/62 = 56% → ~200 of 220 -->
+              <circle cx="45" cy="45" r="35" fill="none" stroke="var(--purple)" stroke-width="12"
+                stroke-dasharray="77 143" stroke-dashoffset="55" stroke-linecap="round"/>
+              <!-- Base: 18/62 = 29% → ~64 -->
+              <circle cx="45" cy="45" r="35" fill="none" stroke="var(--blue)" stroke-width="12"
+                stroke-dasharray="40 180" stroke-dashoffset="-22" stroke-linecap="round"/>
+              <!-- Pro: 9/62 = 15% → ~33 -->
+              <circle cx="45" cy="45" r="35" fill="none" stroke="var(--g)" stroke-width="12"
+                stroke-dasharray="20 200" stroke-dashoffset="-62" stroke-linecap="round"/>
+              <text x="45" y="48" text-anchor="middle" font-size="13" font-weight="800" fill="var(--txt)" font-family="Inter">62</text>
+            </svg>
+            <div class="donut-legend">
+              <div class="donut-leg-item">
+                <div class="donut-dot" style="background:var(--purple)"></div>
+                <span class="donut-leg-name">Premium</span>
+                <span class="donut-leg-val">35</span>
+                <span class="donut-pct">56%</span>
+              </div>
+              <div class="donut-leg-item">
+                <div class="donut-dot" style="background:var(--blue)"></div>
+                <span class="donut-leg-name">Base</span>
+                <span class="donut-leg-val">18</span>
+                <span class="donut-pct">29%</span>
+              </div>
+              <div class="donut-leg-item">
+                <div class="donut-dot" style="background:var(--g)"></div>
+                <span class="donut-leg-name">Pro</span>
+                <span class="donut-leg-val">9</span>
+                <span class="donut-pct">15%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="divider" style="margin-bottom:14px"></div>
+
+          <div class="stat-inline">
+            <span class="stat-inline-label">
+              <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>
+              Истекают на этой неделе
+            </span>
+            <span class="stat-inline-val" style="color:var(--amber)">7</span>
+          </div>
+          <div class="stat-inline">
+            <span class="stat-inline-label">
+              <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+              Доход (план, месяц)
+            </span>
+            <span class="stat-inline-val">3 100 000 сум</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ROW 3: Course progress + Daily activity -->
+    <div class="grid-2">
+
+      <!-- Course progress -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Прогресс по курсам</div>
+            <div class="card-sub">Среднее прохождение и покупки</div>
+          </div>
+        </div>
+        <div class="card-body no-pad">
+          <table class="mini-table">
+            <thead>
+              <tr>
+                <th>Курс</th>
+                <th style="text-align:center">Купили</th>
+                <th style="text-align:center">Прошли</th>
+                <th>Прогресс</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <div style="width:8px;height:8px;border-radius:50%;background:var(--g);flex-shrink:0"></div>
+                    <span style="font-weight:600;font-size:13px">Dr. Feruz — Озиш</span>
+                  </div>
+                </td>
+                <td style="text-align:center;font-weight:700">18</td>
+                <td style="text-align:center;font-weight:700;color:var(--gd)">5</td>
+                <td style="min-width:80px">
+                  <div style="font-size:11.5px;color:var(--sub);margin-bottom:3px">72%</div>
+                  <div class="progress-bar"><div class="progress-fill" style="width:72%;background:var(--g)"></div></div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <div style="width:8px;height:8px;border-radius:50%;background:var(--blue);flex-shrink:0"></div>
+                    <span style="font-weight:600;font-size:13px">Sog'lom ovqatlanish</span>
+                  </div>
+                </td>
+                <td style="text-align:center;font-weight:700">6</td>
+                <td style="text-align:center;font-weight:700;color:var(--gd)">4</td>
+                <td>
+                  <div style="font-size:11.5px;color:var(--sub);margin-bottom:3px">88%</div>
+                  <div class="progress-bar"><div class="progress-fill" style="width:88%;background:var(--blue)"></div></div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <div style="width:8px;height:8px;border-radius:50%;background:var(--purple);flex-shrink:0"></div>
+                    <span style="font-weight:600;font-size:13px">Fitnes starter</span>
+                  </div>
+                </td>
+                <td style="text-align:center;font-weight:700">3</td>
+                <td style="text-align:center;font-weight:700;color:var(--gd)">1</td>
+                <td>
+                  <div style="font-size:11.5px;color:var(--sub);margin-bottom:3px">41%</div>
+                  <div class="progress-bar"><div class="progress-fill" style="width:41%;background:var(--purple)"></div></div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <div style="width:8px;height:8px;border-radius:50%;background:var(--amber);flex-shrink:0"></div>
+                    <span style="font-weight:600;font-size:13px">Stressni boshqarish</span>
+                  </div>
+                </td>
+                <td style="text-align:center;font-weight:700">1</td>
+                <td style="text-align:center;font-weight:700;color:var(--gd)">0</td>
+                <td>
+                  <div style="font-size:11.5px;color:var(--sub);margin-bottom:3px">22%</div>
+                  <div class="progress-bar"><div class="progress-fill" style="width:22%;background:var(--amber)"></div></div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card-footer">
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:12.5px">
+            <span style="color:var(--sub)">Всего покупок курсов: <strong style="color:var(--txt)">28</strong></span>
+            <span style="color:var(--sub)">Среднее прохождение: <strong style="color:var(--gd)">56%</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Daily lesson activity -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Активность — уроки</div>
+            <div class="card-sub">Пройденных уроков по дням (7 дней)</div>
+          </div>
+          <span class="badge badge-blue">287 уроков за месяц</span>
+        </div>
+        <div class="card-body">
+          <div class="bar-chart" style="height:100px">
+            <div class="bar-col">
+              <div class="bar" style="height:52%;background:var(--blue-l);border:1.5px solid #93C5FD"></div>
+              <span class="bar-lbl">Пн</span>
+            </div>
+            <div class="bar-col">
+              <div class="bar" style="height:38%;background:var(--blue-l);border:1.5px solid #93C5FD"></div>
+              <span class="bar-lbl">Вт</span>
+            </div>
+            <div class="bar-col">
+              <div class="bar" style="height:75%;background:var(--blue)"></div>
+              <span class="bar-lbl">Ср</span>
+            </div>
+            <div class="bar-col">
+              <div class="bar" style="height:60%;background:var(--blue)"></div>
+              <span class="bar-lbl">Чт</span>
+            </div>
+            <div class="bar-col">
+              <div class="bar" style="height:88%;background:var(--blue)"></div>
+              <span class="bar-lbl">Пт</span>
+            </div>
+            <div class="bar-col">
+              <div class="bar" style="height:42%;background:var(--blue-l);border:1.5px solid #93C5FD"></div>
+              <span class="bar-lbl">Сб</span>
+            </div>
+            <div class="bar-col">
+              <div class="bar" style="height:30%;background:var(--blue-l);border:1.5px solid #93C5FD"></div>
+              <span class="bar-lbl">Вс</span>
+            </div>
+          </div>
+
+          <div class="divider" style="margin:16px 0"></div>
+
+          <div>
+            <div class="stat-inline">
+              <span class="stat-inline-label">
+                <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                Серия дней подряд (макс.)
+              </span>
+              <span class="stat-inline-val" style="color:var(--amber)">🔥 12 дней</span>
+            </div>
+            <div class="stat-inline">
+              <span class="stat-inline-label">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+                Средняя длина сессии
+              </span>
+              <span class="stat-inline-val">18 мин</span>
+            </div>
+            <div class="stat-inline">
+              <span class="stat-inline-label">
+                <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+                Тестов пройдено
+              </span>
+              <span class="stat-inline-val">41</span>
+            </div>
+            <div class="stat-inline">
+              <span class="stat-inline-label">
+                <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>
+                Средний балл по тестам
+              </span>
+              <span class="stat-inline-val" style="color:var(--gd)">73%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ROW 4: User results + Mentor tracking -->
+    <div class="grid-2">
+
+      <!-- User results (weight/goals) -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Результаты пользователей</div>
+            <div class="card-sub">Вес, цели и прогресс за месяц</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="alert-strip alert-info" style="margin-bottom:14px">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Данные берутся из журналов активности и дневника веса
+          </div>
+
+          <div class="goal-row">
+            <div class="goal-row-top">
+              <span class="goal-name">Похудели на 1–3 кг</span>
+              <span class="goal-val" style="color:var(--gd)">31 чел.</span>
+            </div>
+            <div class="progress-bar" style="height:8px"><div class="progress-fill" style="width:46%;background:var(--g)"></div></div>
+            <div style="font-size:11.5px;color:var(--muted);margin-top:4px">46% от активных</div>
+          </div>
+
+          <div class="goal-row">
+            <div class="goal-row-top">
+              <span class="goal-name">Похудели на 3+ кг</span>
+              <span class="goal-val" style="color:var(--gd)">12 чел.</span>
+            </div>
+            <div class="progress-bar" style="height:8px"><div class="progress-fill" style="width:18%;background:var(--emer)"></div></div>
+            <div style="font-size:11.5px;color:var(--muted);margin-top:4px">18% от активных</div>
+          </div>
+
+          <div class="goal-row">
+            <div class="goal-row-top">
+              <span class="goal-name">Вес не изменился</span>
+              <span class="goal-val" style="color:var(--amber)">17 чел.</span>
+            </div>
+            <div class="progress-bar" style="height:8px"><div class="progress-fill" style="width:25%;background:var(--amber)"></div></div>
+            <div style="font-size:11.5px;color:var(--muted);margin-top:4px">25% от активных</div>
+          </div>
+
+          <div class="goal-row">
+            <div class="goal-row-top">
+              <span class="goal-name">Нет данных по весу</span>
+              <span class="goal-val" style="color:var(--muted)">8 чел.</span>
+            </div>
+            <div class="progress-bar" style="height:8px"><div class="progress-fill" style="width:11%;background:var(--bdr)"></div></div>
+            <div style="font-size:11.5px;color:var(--muted);margin-top:4px">11% от активных</div>
+          </div>
+
+          <div class="divider" style="margin:16px 0"></div>
+
+          <div class="stat-inline">
+            <span class="stat-inline-label">
+              <svg viewBox="0 0 24 24"><polyline points="23,6 13.5,15.5 8.5,10.5 1,18"/><polyline points="17,6 23,6 23,12"/></svg>
+              Среднее снижение веса за месяц
+            </span>
+            <span class="stat-inline-val" style="color:var(--gd)">−1.8 кг</span>
+          </div>
+          <div class="stat-inline">
+            <span class="stat-inline-label">
+              <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Выполнили цель по шагам (10k+/д)
+            </span>
+            <span class="stat-inline-val">24 чел.</span>
+          </div>
+          <div class="stat-inline">
+            <span class="stat-inline-label">
+              <svg viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/></svg>
+              Записей в дневнике питания
+            </span>
+            <span class="stat-inline-val">1 204</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mentor tracking -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Менторы</div>
+            <div class="card-sub">Активность и отклик</div>
+          </div>
+          <span class="badge badge-green">4 ментора</span>
+        </div>
+        <div class="card-body no-pad">
+          <table class="mini-table">
+            <thead>
+              <tr>
+                <th>Ментор</th>
+                <th style="text-align:center">Учеников</th>
+                <th style="text-align:center">Сообщений</th>
+                <th>Отклик</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <div class="user-row">
+                    <div class="avatar" style="background:var(--g)">DF</div>
+                    <div>
+                      <div class="user-name">Dr. Feruz</div>
+                      <div class="mentor-status"><div class="status-dot" style="background:var(--g)"></div><span style="font-size:11px;color:var(--sub)">в сети</span></div>
+                    </div>
+                  </div>
+                </td>
+                <td style="text-align:center;font-weight:700">38</td>
+                <td style="text-align:center;font-weight:700">214</td>
+                <td><span class="badge badge-green">~1 ч</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="user-row">
+                    <div class="avatar" style="background:var(--blue)">ZA</div>
+                    <div>
+                      <div class="user-name">Zulfiya Azimova</div>
+                      <div class="mentor-status"><div class="status-dot" style="background:var(--g)"></div><span style="font-size:11px;color:var(--sub)">в сети</span></div>
+                    </div>
+                  </div>
+                </td>
+                <td style="text-align:center;font-weight:700">29</td>
+                <td style="text-align:center;font-weight:700">187</td>
+                <td><span class="badge badge-green">~2 ч</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="user-row">
+                    <div class="avatar" style="background:var(--purple)">SK</div>
+                    <div>
+                      <div class="user-name">Sherzod Karimov</div>
+                      <div class="mentor-status"><div class="status-dot" style="background:var(--amber)"></div><span style="font-size:11px;color:var(--sub)">неактивен</span></div>
+                    </div>
+                  </div>
+                </td>
+                <td style="text-align:center;font-weight:700">22</td>
+                <td style="text-align:center;font-weight:700">98</td>
+                <td><span class="badge badge-amber">~8 ч</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="user-row">
+                    <div class="avatar" style="background:var(--orange)">NM</div>
+                    <div>
+                      <div class="user-name">Nilufar Mirzayeva</div>
+                      <div class="mentor-status"><div class="status-dot" style="background:var(--muted)"></div><span style="font-size:11px;color:var(--sub)">офлайн</span></div>
+                    </div>
+                  </div>
+                </td>
+                <td style="text-align:center;font-weight:700">11</td>
+                <td style="text-align:center;font-weight:700">44</td>
+                <td><span class="badge badge-red">+24 ч</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card-footer">
+          <div class="alert-strip alert-warn" style="margin-bottom:0">
+            <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Sherzod и Nilufar — долгое время без ответа. Стоит проверить.
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ROW 5: Recent purchases + Notifications -->
+    <div class="grid-32">
+
+      <!-- Recent course purchases -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Последние покупки курсов</div>
+            <div class="card-sub">За последние 7 дней</div>
+          </div>
+        </div>
+        <div class="card-body no-pad">
+          <table class="mini-table">
+            <thead>
+              <tr>
+                <th>Пользователь</th>
+                <th>Курс</th>
+                <th>Сумма</th>
+                <th>Дата</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div class="user-row"><div class="avatar" style="background:var(--g);font-size:10px">BY</div><div class="user-name">Buyc Y.</div></div></td>
+                <td><span class="badge badge-green" style="font-size:11px">Dr. Feruz</span></td>
+                <td style="font-weight:700">199 000 сум</td>
+                <td style="color:var(--sub);font-size:12px">22 мая</td>
+              </tr>
+              <tr>
+                <td><div class="user-row"><div class="avatar" style="background:var(--blue);font-size:10px">KY</div><div class="user-name">Kamron Y.</div></div></td>
+                <td><span class="badge badge-blue" style="font-size:11px">Питание ABC</span></td>
+                <td style="font-weight:700">Бесплатно</td>
+                <td style="color:var(--sub);font-size:12px">21 мая</td>
+              </tr>
+              <tr>
+                <td><div class="user-row"><div class="avatar" style="background:var(--purple);font-size:10px">TT</div><div class="user-name">Tesfit T.</div></div></td>
+                <td><span class="badge badge-green" style="font-size:11px">Dr. Feruz</span></td>
+                <td style="font-weight:700">199 000 сум</td>
+                <td style="color:var(--sub);font-size:12px">21 мая</td>
+              </tr>
+              <tr>
+                <td><div class="user-row"><div class="avatar" style="background:var(--amber);font-size:10px">DV</div><div class="user-name">Dgtfc V.</div></div></td>
+                <td><span class="badge badge-purple" style="font-size:11px">Фитнес</span></td>
+                <td style="font-weight:700">149 000 сум</td>
+                <td style="color:var(--sub);font-size:12px">20 мая</td>
+              </tr>
+              <tr>
+                <td><div class="user-row"><div class="avatar" style="background:var(--red);font-size:10px">AR</div><div class="user-name">Alibej R.</div></div></td>
+                <td><span class="badge badge-green" style="font-size:11px">Dr. Feruz</span></td>
+                <td style="font-weight:700">199 000 сум</td>
+                <td style="color:var(--sub);font-size:12px">19 мая</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Alerts / Attention needed -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Требует внимания</div>
+            <div class="card-sub">Ситуации, на которые стоит обратить внимание</div>
+          </div>
+        </div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+
+          <div style="border:1px solid #FDE68A;background:var(--amb-l);border-radius:10px;padding:12px 14px">
+            <div style="font-size:12.5px;font-weight:700;color:#92400E;margin-bottom:3px;display:flex;align-items:center;gap:6px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              7 подписок истекают на этой неделе
+            </div>
+            <div style="font-size:12px;color:#92400E">Пользователи могут не знать об окончании тарифа</div>
+          </div>
+
+          <div style="border:1px solid #FDE68A;background:var(--amb-l);border-radius:10px;padding:12px 14px">
+            <div style="font-size:12.5px;font-weight:700;color:#92400E;margin-bottom:3px;display:flex;align-items:center;gap:6px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              19 пользователей не открывали приложение 14+ дней
+            </div>
+            <div style="font-size:12px;color:#92400E">Могут потерять мотивацию. Стоит отправить уведомление.</div>
+          </div>
+
+          <div style="border:1px solid var(--red-l);background:var(--red-l);border-radius:10px;padding:12px 14px">
+            <div style="font-size:12.5px;font-weight:700;color:var(--red);margin-bottom:3px;display:flex;align-items:center;gap:6px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+              Ментор Nilufar не отвечает больше 24 часов
+            </div>
+            <div style="font-size:12px;color:var(--red)">11 учеников могут быть без поддержки</div>
+          </div>
+
+          <div style="border:1px solid #B6EDD3;background:var(--gl);border-radius:10px;padding:12px 14px">
+            <div style="font-size:12.5px;font-weight:700;color:var(--gd);margin-bottom:3px;display:flex;align-items:center;gap:6px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gd)" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>
+              12 пользователей похудели более чем на 3 кг
+            </div>
+            <div style="font-size:12px;color:var(--gd)">Хороший результат — можно опубликовать как кейс</div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+  </div><!-- /page -->
+
+</main>
+
+<script>
+// Period tabs
+document.querySelectorAll('.period-tab').forEach(tab => {
+  tab.addEventListener('click', function() {
+    document.querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+
+// Nav items
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', function() {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+
+// Refresh button spin
+const refreshBtn = document.querySelector('.refresh-btn');
+refreshBtn.addEventListener('click', function() {
+  this.querySelector('svg').style.transition = 'transform .5s';
+  this.querySelector('svg').style.transform = 'rotate(360deg)';
+  setTimeout(() => {
+    this.querySelector('svg').style.transition = 'none';
+    this.querySelector('svg').style.transform = 'none';
+  }, 550);
+});
+</script>
+</body>
+</html>

@@ -1,31 +1,12 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { authApi, profileApi } from "../api/endpoints";
+import { persistSession, readSession, refreshStoredAccessToken } from "../api/session";
 import { normalizeLmsRole } from "../utils/authRouting";
 
 const LmsContext = createContext(null);
 
-const SESSION_KEY = "lms_session_v1";
-
-export function readSession() {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-function persistSession(session) {
-  if (!session) {
-    localStorage.removeItem(SESSION_KEY);
-    localStorage.removeItem("user_id");
-    return;
-  }
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  localStorage.setItem("user_id", session.userId);
-}
+export { readSession } from "../api/session";
 
 function mapProfileToUser(api) {
   if (!api || typeof api !== "object") return null;
@@ -89,15 +70,6 @@ function normalizeGatewayAuthPayload(raw, profileHints = {}) {
       stats: null,
     },
   };
-}
-
-function normalizeRefreshResponse(raw) {
-  if (!raw || typeof raw !== "object") {
-    return { accessToken: null, refreshToken: null };
-  }
-  const accessToken = raw.access_token ?? raw.token?.access_token ?? null;
-  const refreshToken = raw.refresh_token ?? raw.token?.refresh_token ?? null;
-  return { accessToken, refreshToken };
 }
 
 function readInitialUser() {
@@ -177,25 +149,8 @@ export function LmsProvider({ children }) {
   }, []);
 
   const refreshAuthTokens = useCallback(async () => {
-    const s = readSession();
-    if (!s?.refreshToken || !s?.userId) {
-      return false;
-    }
-    try {
-      const data = await authApi.refresh({ refresh_token: s.refreshToken });
-      let { accessToken, refreshToken } = normalizeRefreshResponse(data);
-      if (!refreshToken) {
-        refreshToken = s.refreshToken;
-      }
-      if (!accessToken) {
-        return false;
-      }
-      const next = { ...s, token: accessToken, refreshToken };
-      persistSession(next);
-      return true;
-    } catch {
-      return false;
-    }
+    const newToken = await refreshStoredAccessToken();
+    return Boolean(newToken);
   }, []);
 
   const logout = useCallback(async () => {

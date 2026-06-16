@@ -39,7 +39,7 @@ export function CreateCoursePage() {
     }
     setSaving(true);
     try {
-      await courseApi.create(
+      const res = await courseApi.create(
         {
           title: form.title,
           description: form.description,
@@ -55,8 +55,9 @@ export function CreateCoursePage() {
         },
         { token },
       );
+      const newId = res?.course?.id ?? res?.id;
       toast.success("Course created");
-      navigate("/instructor");
+      navigate(newId ? `/instructor/courses/${newId}` : "/instructor/courses", { replace: true });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Save failed");
     } finally {

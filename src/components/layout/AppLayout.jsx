@@ -6,6 +6,7 @@ import {
   CalendarDays,
   FileText,
   Gift,
+  Layers,
   LayoutDashboard,
   LogOut,
   PlusCircle,
@@ -23,6 +24,7 @@ function getNavForRole(role) {
     case "instructor":
       return [
         { to: "/instructor", label: "Dashboard", icon: LayoutDashboard, end: true },
+        { to: "/instructor/courses", label: "Course builder", icon: Layers },
         { to: "/instructor/create-course", label: "Create course", icon: PlusCircle },
         { to: "/profile", label: "Profile", icon: User },
       ];

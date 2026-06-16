@@ -61,17 +61,7 @@ export const quizApi = {
 };
 
 export const reviewApi = {
-  /** object_data: { courses_id, rating, comment } */
-  create: (courseId, { rating, comment }, options) =>
-    callGateway(
-      "create_course_review",
-      {
-        courses_id: courseId,
-        rating: Number(rating),
-        comment: String(comment ?? "").trim(),
-      },
-      options,
-    ),
+  create: (payload, options) => callGateway("create_course_review", payload, options),
 };
 
 export const adminApi = {
