@@ -11,13 +11,13 @@ import {
   LogOut,
   PlusCircle,
   Search,
-  ShoppingBag,
   User,
   Users,
   Wallet,
 } from "lucide-react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { APP_NAME } from "../../constants/branding";
+import { profileApi } from "../../api/endpoints";
 import { useLms } from "../../data/LmsContext";
 
 function getNavForRole(role) {
@@ -42,6 +42,7 @@ function getNavForRole(role) {
       return [
         { to: "/student", label: "Dashboard", icon: LayoutDashboard, end: true },
         { to: "/catalog", label: "Courses", icon: BookOpen },
+        { to: "/top-up", label: "Top Up", icon: Wallet },
         { to: "/certificates", label: "Certificates", icon: Award },
         { to: "/rewards", label: "Rewards", icon: Gift },
         { to: "/profile", label: "Profile", icon: User },
@@ -50,7 +51,7 @@ function getNavForRole(role) {
 }
 
 export function AppLayout() {
-  const { currentUser, logout, role } = useLms();
+  const { currentUser, logout, role, getToken } = useLms();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -59,6 +60,8 @@ export function AppLayout() {
   }
 
   const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notifLoading, setNotifLoading] = useState(false);
   const notifRef = useRef(null);
 
   useEffect(() => {
@@ -70,6 +73,21 @@ export function AppLayout() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const loadNotifications = async () => {
+    const token = getToken();
+    if (!token) return;
+    setNotifLoading(true);
+    try {
+      const data = await profileApi.getNotifications({ page: 1, page_size: 10 }, { token });
+      const list = (data.notifications ?? data ?? []);
+      setNotifications(Array.isArray(list) ? list : []);
+    } catch {
+      setNotifications([]);
+    } finally {
+      setNotifLoading(false);
+    }
+  };
 
   const navItems = getNavForRole(role);
 
@@ -161,17 +179,10 @@ export function AppLayout() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100"
-              aria-label="Shopping"
-            >
-              <ShoppingBag size={20} />
-            </button>
             <div className="relative" ref={notifRef}>
               <button
                 type="button"
-                onClick={() => setNotifOpen((v) => !v)}
+                onClick={() => { setNotifOpen((v) => !v); if (!notifOpen) loadNotifications(); }}
                 className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100"
                 aria-label="Notifications"
               >
@@ -180,7 +191,20 @@ export function AppLayout() {
               {notifOpen && (
                 <div className="absolute right-0 top-12 z-50 w-80 rounded-xl border border-gray-100 bg-white p-4 shadow-lg">
                   <p className="text-sm font-semibold text-gray-800">Notifications</p>
-                  <p className="mt-3 text-center text-sm text-gray-400">No notifications yet.</p>
+                  {notifLoading ? (
+                    <p className="mt-3 text-center text-sm text-gray-400">Loading...</p>
+                  ) : notifications.length === 0 ? (
+                    <p className="mt-3 text-center text-sm text-gray-400">No notifications yet.</p>
+                  ) : (
+                    <ul className="mt-3 max-h-64 space-y-2 overflow-y-auto">
+                      {notifications.map((n, i) => (
+                        <li key={n.id ?? i} className="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                          <p className="font-medium">{n.title ?? n.message ?? ""}</p>
+                          {n.body && <p className="mt-0.5 text-xs text-gray-500">{n.body}</p>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               )}
             </div>

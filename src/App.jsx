@@ -25,6 +25,7 @@ import { RegisterPage } from "./pages/auth/RegisterPage";
 import { AdminReportsPage } from "./pages/admin/AdminReportsPage";
 import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
 import { TeacherPayoutPage } from "./pages/admin/TeacherPayoutPage";
+import { TopUpPage } from "./pages/TopUpPage";
 import { InstructorCoursesPage } from "./pages/instructor/InstructorCoursesPage";
 
 function App() {
@@ -103,6 +104,14 @@ function App() {
           element={
             <RequireRole allow={["student"]}>
               <StudentDashboardPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/top-up"
+          element={
+            <RequireRole allow={["student"]}>
+              <TopUpPage />
             </RequireRole>
           }
         />

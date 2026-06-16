@@ -4,7 +4,7 @@ import { Award, Gift, Search, Star } from "lucide-react";
 import { toast } from "sonner";
 import { profileApi } from "../api/endpoints";
 import { useLms } from "../data/LmsContext";
-import { formatDate } from "../utils/format";
+import { formatDate, formatPrice } from "../utils/format";
 
 function matchesSearch(cert, q) {
   const s = q.trim().toLowerCase();
@@ -225,20 +225,30 @@ export function RewardsPage() {
                         <Icon className="h-8 w-8 shrink-0 text-damiun-primary" />
                         <h3 className="text-lg font-semibold text-damiun-wordmark">{reward.title}</h3>
                       </div>
-                      <span className="text-lg font-bold text-damiun-primary">{reward.points ?? 0} pts</span>
+                      <span className="text-lg font-bold text-damiun-primary">{formatPrice(reward.points ?? reward.amount ?? 0)}</span>
                     </div>
                     <p className="mt-3 flex-1 text-sm text-damiun-body">{reward.description}</p>
                     <button
                       type="button"
-                      disabled={!reward.unlocked}
-                      onClick={() => toast.info(`Reward "${reward.title}" — ${reward.unlocked ? "available" : "locked"}.`)}
+                      disabled={!reward.unlocked || reward.claimed}
+                      onClick={async () => {
+                        const token = getToken();
+                        if (!token) return;
+                        try {
+                          await profileApi.topUpBalance({ amount: reward.points ?? reward.amount ?? 0, reward_id: reward.id }, { token });
+                          toast.success(`${formatPrice(reward.points ?? reward.amount ?? 0)} balansga qo'shildi!`);
+                          setApiRewards((prev) => prev.map((r) => r.id === reward.id ? { ...r, claimed: true } : r));
+                        } catch (err) {
+                          toast.error(err instanceof Error ? err.message : "Xatolik");
+                        }
+                      }}
                       className={`mt-5 w-full rounded-full py-2.5 text-sm font-semibold transition ${
-                        reward.unlocked
+                        reward.unlocked && !reward.claimed
                           ? "bg-damiun-primary text-white shadow-sm hover:bg-damiun-primary-hover"
                           : "cursor-not-allowed bg-gray-100 text-damiun-muted"
                       }`}
                     >
-                      {reward.unlocked ? "View" : "Locked"}
+                      {reward.claimed ? "Claimed" : reward.unlocked ? "Claim" : "Locked"}
                     </button>
                   </article>
                 );

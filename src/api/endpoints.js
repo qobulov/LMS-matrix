@@ -12,6 +12,8 @@ export const profileApi = {
   update: (payload, options) => callGateway("update_profile", payload, options),
   getMyRewards: (options) => callGateway("get_my_rewards", {}, options),
   getBalance: (options) => callGateway("get_balance", {}, options),
+  topUpBalance: (payload, options) => callGateway("top_up_balance", payload, options),
+  getNotifications: (filters = {}, options) => callGateway("get_notifications", filters, options),
 };
 
 export const homeApi = {
