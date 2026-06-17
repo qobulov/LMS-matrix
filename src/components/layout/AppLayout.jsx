@@ -5,11 +5,9 @@ import {
   Bell,
   BookOpen,
   FileText,
-  Gift,
   Layers,
   LayoutDashboard,
   LogOut,
-  PlusCircle,
   Search,
   User,
   Users,
@@ -26,7 +24,7 @@ function getNavForRole(role) {
       return [
         { to: "/instructor", label: "Dashboard", icon: LayoutDashboard, end: true },
         { to: "/instructor/courses", label: "Course builder", icon: Layers },
-        { to: "/instructor/create-course", label: "Create course", icon: PlusCircle },
+        { to: "/instructor/transactions", label: "Transactions", icon: BarChart2 },
         { to: "/profile", label: "Profile", icon: User },
       ];
     case "director":
@@ -35,6 +33,7 @@ function getNavForRole(role) {
         { to: "/admin/reports", label: "Reports", icon: FileText },
         { to: "/admin/users", label: "Users", icon: Users },
         { to: "/admin/payouts", label: "Payouts", icon: Wallet },
+        { to: "/admin/transactions", label: "Transactions", icon: Layers },
         { to: "/profile", label: "Profile", icon: User },
       ];
     case "student":
@@ -43,8 +42,8 @@ function getNavForRole(role) {
         { to: "/student", label: "Dashboard", icon: LayoutDashboard, end: true },
         { to: "/catalog", label: "Courses", icon: BookOpen },
         { to: "/top-up", label: "Top Up", icon: Wallet },
+        { to: "/transactions", label: "Transactions", icon: BarChart2 },
         { to: "/certificates", label: "Certificates", icon: Award },
-        { to: "/rewards", label: "Rewards", icon: Gift },
         { to: "/profile", label: "Profile", icon: User },
       ];
   }

@@ -18,16 +18,19 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { PublicVerifyPage } from "./pages/PublicVerifyPage";
 import { QuizPage } from "./pages/QuizPage";
-import { RewardsPage } from "./pages/RewardsPage";
 import { StudentDashboardPage } from "./pages/StudentDashboardPage";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
 import { AdminReportsPage } from "./pages/admin/AdminReportsPage";
 import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
+import { AdminTransactionsPage } from "./pages/admin/AdminTransactionsPage";
 import { TeacherPayoutPage } from "./pages/admin/TeacherPayoutPage";
 import { TopUpPage } from "./pages/TopUpPage";
+import { StudentTransactionsPage } from "./pages/StudentTransactionsPage";
 import { InstructorCoursesPage } from "./pages/instructor/InstructorCoursesPage";
+import { InstructorTransactionsPage } from "./pages/instructor/InstructorTransactionsPage";
+import { CoursePreviewRedirect } from "./pages/CoursePreviewRedirect";
 
 function App() {
   const { isAuthenticated, authReady, currentUser } = useLms();
@@ -101,14 +104,6 @@ function App() {
           }
         />
         <Route path="/profile" element={<ProfilePage />} />
-        <Route
-          path="/rewards"
-          element={
-            <RequireRole allow={["student"]}>
-              <RewardsPage />
-            </RequireRole>
-          }
-        />
 
         <Route
           path="/student"
@@ -123,6 +118,14 @@ function App() {
           element={
             <RequireRole allow={["student"]}>
               <TopUpPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/transactions"
+          element={
+            <RequireRole allow={["student"]}>
+              <StudentTransactionsPage />
             </RequireRole>
           }
         />
@@ -167,6 +170,14 @@ function App() {
             </RequireRole>
           }
         />
+        <Route
+          path="/instructor/transactions"
+          element={
+            <RequireRole allow={["instructor"]}>
+              <InstructorTransactionsPage />
+            </RequireRole>
+          }
+        />
 
         <Route
           path="/admin"
@@ -180,13 +191,14 @@ function App() {
           <Route path="reports" element={<AdminReportsPage />} />
           <Route path="users" element={<AdminUsersPage />} />
           <Route path="payouts" element={<TeacherPayoutPage />} />
+          <Route path="transactions" element={<AdminTransactionsPage />} />
         </Route>
       </Route>
 
       <Route
         element={
           <RequireAuth>
-            <RequireRole allow={["student"]}>
+            <RequireRole allow={["student", "instructor"]}>
               <LessonLayout />
             </RequireRole>
           </RequireAuth>
@@ -194,6 +206,17 @@ function App() {
       >
         <Route path="/learn/:courseId/:lessonId" element={<LessonViewerPage />} />
       </Route>
+
+      <Route
+        path="/learn-preview/:courseId"
+        element={
+          <RequireAuth>
+            <RequireRole allow={["instructor"]}>
+              <CoursePreviewRedirect />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
 
       <Route
         path="/home"

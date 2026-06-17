@@ -2,8 +2,9 @@ import { CheckCircle2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { enrollmentApi } from "../api/endpoints";
+import { courseApi, enrollmentApi } from "../api/endpoints";
 import { useLms } from "../data/LmsContext";
+import { mapCourseDetail } from "../utils/gatewayMappers";
 
 function getYouTubeId(url) {
   const m = url?.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
@@ -47,7 +48,7 @@ function mapViewerToState(data, courseIdStr, lessonIdStr) {
 export function LessonViewerPage() {
   const { courseId, lessonId } = useParams();
   const navigate = useNavigate();
-  const { getToken } = useLms();
+  const { getToken, role } = useLms();
   const [course, setCourse] = useState(null);
   const [completed, setCompleted] = useState(() => new Set());
   const [loading, setLoading] = useState(true);
@@ -57,6 +58,31 @@ export function LessonViewerPage() {
   const load = useCallback(async () => {
     const token = getToken();
     if (!courseId || !lessonId) return;
+
+    if (role === "instructor") {
+      // Instructor has no enrollment — build viewer state from course detail
+      const raw = await courseApi.getById(courseId, token ? { token } : {});
+      const detail = mapCourseDetail(raw);
+      const modules = (detail.modules ?? []).map((m) => ({
+        id: m.id,
+        title: m.title,
+        lessons: m.lessons.map((l) => ({
+          id: l.id,
+          title: l.title,
+          isPreview: l.isPreview,
+          durationMin: l.durationMin,
+          resourceUrl: l.resourceUrl,
+          type: "video",
+          content: "",
+          moduleTitle: m.title,
+          moduleId: m.id,
+        })),
+      }));
+      setCourse({ id: detail.id, title: detail.title, coverImage: detail.coverImage, modules });
+      setCompleted(new Set());
+      return;
+    }
+
     const raw = await enrollmentApi.getLessonViewer(
       courseId,
       lessonId,
@@ -65,7 +91,7 @@ export function LessonViewerPage() {
     const { course: c, completedIds } = mapViewerToState(raw, courseId, lessonId);
     setCourse(c);
     setCompleted(completedIds);
-  }, [courseId, lessonId, getToken]);
+  }, [courseId, lessonId, getToken, role]);
 
   useEffect(() => {
     let cancelled = false;
@@ -222,7 +248,7 @@ export function LessonViewerPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            {!completed.has(lesson.id) && (
+            {role !== "instructor" && !completed.has(lesson.id) && (
               <button
                 type="button"
                 onClick={handleMarkComplete}

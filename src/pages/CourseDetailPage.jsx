@@ -49,7 +49,7 @@ function mapEnrollmentRow(e, courseIdStr) {
   };
 }
 
-function CourseSyllabusSection({ course, enrollment }) {
+function CourseSyllabusSection({ course, enrollment, isOwner }) {
   const [openModuleIds, setOpenModuleIds] = useState(
     () => new Set((course.modules ?? []).map((m) => m.id)),
   );
@@ -85,7 +85,7 @@ function CourseSyllabusSection({ course, enrollment }) {
               {isOpen && (
                 <ul className="divide-y divide-gray-100 bg-white">
                   {(module.lessons ?? []).map((lesson) => {
-                    const canPreview = lesson.isPreview;
+                    const canPreview = lesson.isPreview || isOwner;
                     const locked = !enrollment && !canPreview;
                     return (
                       <li key={lesson.id} className="flex flex-wrap items-center gap-2 px-4 py-3 text-sm">
@@ -137,6 +137,7 @@ export function CourseDetailPage() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState("");
   const [enrolling, setEnrolling] = useState(false);
+  const [insufficientBalance, setInsufficientBalance] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
 
   const loadCourse = useCallback(async () => {
@@ -207,17 +208,31 @@ export function CourseDetailPage() {
       );
       if (!ok) return;
     }
+    setInsufficientBalance(false);
     setEnrolling(true);
     try {
       await enrollmentApi.enroll({ courses_id: course.id }, { token });
       toast.success("Enrolled");
       await loadEnrollment();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Enrollment failed");
+      const msg = err instanceof Error ? err.message : "";
+      const isBalanceError =
+        /balance|insufficient|yetarli|mablag/i.test(msg);
+      if (isBalanceError) {
+        setInsufficientBalance(true);
+      } else {
+        toast.error(msg || "Enrollment failed");
+      }
     } finally {
       setEnrolling(false);
     }
   };
+
+  const isOwnCourse =
+    role === "instructor" &&
+    course?.instructorId &&
+    currentUser?.id &&
+    String(course.instructorId) === String(currentUser.id);
 
   const canLeaveReview =
     role === "student" &&
@@ -244,8 +259,7 @@ export function CourseDetailPage() {
     setSubmittingReview(true);
     try {
       const res = await reviewApi.create(
-        course.id,
-        { rating: reviewRating, comment: reviewText.trim() },
+        { courses_id: course.id, rating: reviewRating, comment: reviewText.trim() },
         { token },
       );
       const comment = reviewText.trim();
@@ -424,7 +438,7 @@ export function CourseDetailPage() {
               </ul>
             </section>
 
-            <CourseSyllabusSection key={course.id} course={course} enrollment={enrollment} />
+            <CourseSyllabusSection key={course.id} course={course} enrollment={enrollment} isOwner={isOwnCourse} />
 
             <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 sm:p-8">
               <h2 className="text-lg font-bold">Student reviews</h2>
@@ -512,21 +526,48 @@ export function CourseDetailPage() {
                 </Link>
               )}
 
-              {isAuthenticated && role !== "student" && (
+              {isOwnCourse && nextLesson && (
+                <Link
+                  to={`/learn/${course.id}/${nextLesson.id}`}
+                  className="mt-6 flex w-full items-center justify-center rounded-full bg-damiun-primary py-3 text-sm font-bold text-white shadow-sm hover:bg-damiun-primary-hover"
+                >
+                  Preview kurs
+                </Link>
+              )}
+
+              {isAuthenticated && role !== "student" && !isOwnCourse && (
                 <p className="mt-4 rounded-lg bg-gray-50 p-3 text-xs text-damiun-muted">
-                  Only student accounts can enroll. Switch role or register as a student.
+                  Only student accounts can enroll.
                 </p>
               )}
 
               {isAuthenticated && role === "student" && !enrollment && (
-                <button
-                  type="button"
-                  onClick={handleEnroll}
-                  disabled={enrolling}
-                  className="mt-6 w-full rounded-full bg-damiun-primary py-3 text-sm font-bold text-white shadow-sm transition hover:bg-damiun-primary-hover disabled:opacity-60"
-                >
-                  {enrolling ? "Enrolling…" : course.price > 0 ? "Enroll" : "Enroll free"}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={handleEnroll}
+                    disabled={enrolling}
+                    className="mt-6 w-full rounded-full bg-damiun-primary py-3 text-sm font-bold text-white shadow-sm transition hover:bg-damiun-primary-hover disabled:opacity-60"
+                  >
+                    {enrolling ? "Enrolling…" : course.price > 0 ? "Enroll" : "Enroll free"}
+                  </button>
+                  {insufficientBalance && (
+                    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                      <p className="text-sm font-semibold text-amber-800">
+                        Balans yetarli emas
+                      </p>
+                      <p className="mt-0.5 text-xs text-amber-700">
+                        Kursga yozilish uchun hisobni to&apos;ldiring.
+                      </p>
+                      <Link
+                        to="/top-up"
+                        className="mt-2 inline-block rounded-full bg-amber-500 px-4 py-1.5 text-xs font-bold text-white hover:bg-amber-600"
+                      >
+                        Hisobni to&apos;ldirish →
+                      </Link>
+                    </div>
+                  )}
+                </>
               )}
 
               {isAuthenticated && role === "student" && enrollment && nextLesson && (

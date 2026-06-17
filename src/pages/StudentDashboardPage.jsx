@@ -172,12 +172,14 @@ export function StudentDashboardPage() {
                       <p className="text-sm text-damiun-muted">Barcha lessonlar tugallangan.</p>
                     )}
 
-                    <Link
-                      to={`/quiz/${course.id}`}
-                      className="inline-flex rounded-full border border-damiun-primary px-4 py-2 text-sm font-semibold text-damiun-primary transition hover:bg-damiun-nav-tint"
-                    >
-                      Final quiz
-                    </Link>
+                    {!enrollment.attempts.some((a) => a.score >= 100) && (
+                      <Link
+                        to={`/quiz/${course.id}`}
+                        className="inline-flex rounded-full border border-damiun-primary px-4 py-2 text-sm font-semibold text-damiun-primary transition hover:bg-damiun-nav-tint"
+                      >
+                        Final quiz
+                      </Link>
+                    )}
                   </div>
 
                   {latestAttempt ? (

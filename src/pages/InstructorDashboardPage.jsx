@@ -185,8 +185,14 @@ export function InstructorDashboardPage() {
                           Build content
                         </Link>
                         <Link
+                          to={`/learn-preview/${course.id}`}
+                          className="rounded-full border border-damiun-primary/30 px-3 py-1.5 text-xs font-semibold text-damiun-primary hover:bg-damiun-nav-tint"
+                        >
+                          Preview
+                        </Link>
+                        <Link
                           to={`/courses/${course.id}`}
-                          className="rounded-full px-3 py-1.5 text-xs font-semibold text-damiun-primary hover:underline"
+                          className="rounded-full px-3 py-1.5 text-xs font-semibold text-damiun-muted hover:underline"
                         >
                           Public page
                         </Link>

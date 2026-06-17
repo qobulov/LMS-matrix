@@ -17,6 +17,7 @@ export const profileApi = {
   getBalance: (options) => callGateway("get_balance", {}, options),
   topUpBalance: (payload, options) => callGateway("top_up_balance", payload, options),
   getNotifications: (filters = {}, options) => callGateway("get_notifications", filters, options),
+  getTransactions: (filters = {}, options) => callGateway("get_transactions", filters, options),
 };
 
 export const homeApi = {
@@ -62,8 +63,14 @@ export const enrollmentApi = {
 
 export const quizApi = {
   get: (courseId, options) => callGateway("get_quiz", { courses_id: courseId }, options),
+  list: (courseId, options) =>
+    callGateway("get_course_quizzes", { courses_id: courseId }, options),
+  detail: (quizId, options) =>
+    callGateway("get_quiz_detail", { quiz_id: quizId }, options),
   submitAttempt: (payload, options) =>
     callGateway("submit_quiz_attempt", payload, options),
+  create: (payload, options) => callGateway("create_quiz", payload, options),
+  update: (payload, options) => callGateway("update_quiz", payload, options),
 };
 
 export const reviewApi = {
@@ -83,6 +90,8 @@ export const adminApi = {
     callGateway("get_instructor_payouts", filters, options),
   createPayout: (payload, options) =>
     callGateway("create_instructor_payout", payload, options),
+  getTransactions: (filters = {}, options) =>
+    callGateway("get_transactions", filters, options),
 };
 
 export const certificateApi = {

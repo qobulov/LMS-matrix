@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { quizApi } from "../api/endpoints";
 import { useLms } from "../data/LmsContext";
@@ -34,6 +34,7 @@ function mapQuizPayload(data) {
 
 export function QuizPage() {
   const { courseId } = useParams();
+  const navigate = useNavigate();
   const { getToken } = useLms();
   const [quiz, setQuiz] = useState(null);
   const [attemptHistory, setAttemptHistory] = useState([]);
@@ -44,6 +45,7 @@ export function QuizPage() {
   const [passed, setPassed] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [redirectCountdown, setRedirectCountdown] = useState(null);
 
   const load = useCallback(async () => {
     const token = getToken();
@@ -93,6 +95,16 @@ export function QuizPage() {
 
     return () => clearInterval(timer);
   }, [quiz, result, timeLeft]);
+
+  useEffect(() => {
+    if (redirectCountdown === null) return undefined;
+    if (redirectCountdown <= 0) {
+      navigate("/student", { replace: true });
+      return undefined;
+    }
+    const t = setTimeout(() => setRedirectCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [redirectCountdown, navigate]);
 
   if (loading) {
     return (
@@ -148,13 +160,20 @@ export function QuizPage() {
         },
         { token },
       );
-      setResult(res.score ?? 0);
-      setPassed(Boolean(res.passed));
+      const score = res.score ?? 0;
+      const isPassed = Boolean(res.passed) || score >= (quiz?.passThreshold ?? 70);
+      setResult(score);
+      setPassed(isPassed);
       setAttemptHistory((prev) => [
-        { score: res.score, submittedAt: new Date().toISOString() },
+        { score, submittedAt: new Date().toISOString() },
         ...prev,
       ]);
-      toast.success(res.passed ? "Tabriklaymiz!" : "Natija saqlandi");
+      if (isPassed) {
+        toast.success("Tabriklaymiz! Asosiy sahifaga yo'naltirilmoqda…");
+        setRedirectCountdown(3);
+      } else {
+        toast.success("Natija saqlandi");
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Yuborishda xato");
     } finally {
@@ -265,6 +284,11 @@ export function QuizPage() {
           <p className="mt-2 text-sm opacity-90">
             Pass threshold: {quiz.passThreshold}% · {passedUi ? "Great work." : "Review lessons and try again."}
           </p>
+          {passedUi && redirectCountdown !== null && (
+            <p className="mt-4 text-sm font-semibold opacity-80">
+              {redirectCountdown} soniyadan so&apos;ng asosiy sahifaga o&apos;tiladi…
+            </p>
+          )}
         </div>
       ) : null}
     </div>
