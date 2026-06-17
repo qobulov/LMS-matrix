@@ -338,15 +338,15 @@ function OtpStep({
       )}
 
       <div className="space-y-6">
-        <OtpInput value={otp} onChange={setOtp} length={OTP_LENGTH} disabled={loading} />
+        <OtpInput value={otp} onChange={setOtp} length={OTP_LENGTH} />
 
         <button
           type="button"
           onClick={onVerify}
-          disabled={loading || otp.length !== OTP_LENGTH}
+          disabled={otp.length !== OTP_LENGTH}
           className="h-12 w-full rounded-full bg-damiun-primary text-[0.9375rem] font-semibold text-white shadow-sm transition hover:bg-damiun-primary-hover disabled:opacity-70"
         >
-          {loading ? "Tekshirilmoqda..." : "Tasdiqlash"}
+          Davom etish
         </button>
 
         <div className="text-center text-sm" style={{ color: brand.muted }}>
