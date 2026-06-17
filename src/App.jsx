@@ -22,6 +22,7 @@ import { RewardsPage } from "./pages/RewardsPage";
 import { StudentDashboardPage } from "./pages/StudentDashboardPage";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
+import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
 import { AdminReportsPage } from "./pages/admin/AdminReportsPage";
 import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
 import { TeacherPayoutPage } from "./pages/admin/TeacherPayoutPage";
@@ -58,6 +59,16 @@ function App() {
             <Navigate to={getHomePathForRole(currentUser?.role)} replace />
           ) : (
             <RegisterPage />
+          )
+        }
+      />
+      <Route
+        path="/forgot-password"
+        element={
+          isAuthenticated ? (
+            <Navigate to={getHomePathForRole(currentUser?.role)} replace />
+          ) : (
+            <ForgotPasswordPage />
           )
         }
       />

@@ -98,7 +98,10 @@ export async function callGateway(method, objectData = {}, options = {}) {
     options.skipAuthRefresh ||
     method === "login" ||
     method === "register" ||
-    method === "refresh_token";
+    method === "refresh_token" ||
+    method === "send_otp" ||
+    method === "verify_otp" ||
+    method === "reset_password";
 
   let token = options.token ?? null;
   let retried = Boolean(options._retried);

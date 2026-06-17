@@ -44,6 +44,7 @@ interface TravelConnectSignInProps {
   mode?: 'login' | 'register';
   onSubmit: (values: LoginFields | RegisterFields) => Promise<void> | void;
   onSwitchMode?: () => void;
+  onForgotPassword?: () => void;
   /** Server-side validation (e.g. register API) */
   error?: string;
   /** Disables submit while parent handles async work */
@@ -70,6 +71,7 @@ const TravelConnectSignIn = ({
   mode = 'login',
   onSubmit,
   onSwitchMode,
+  onForgotPassword,
   error: externalError,
   loading = false,
 }: TravelConnectSignInProps) => {
@@ -221,15 +223,18 @@ const TravelConnectSignIn = ({
                     )}
                   </div>
 
-                  <div className="text-right text-sm sm:text-[0.9375rem]" style={{ color: brand.muted }}>
-                    <button
-                      type="button"
-                      className="transition hover:text-damiun-primary"
-                      style={{ color: brand.muted }}
-                    >
-                      Forgot my password
-                    </button>
-                  </div>
+                  {!isRegister && (
+                    <div className="text-right text-sm sm:text-[0.9375rem]" style={{ color: brand.muted }}>
+                      <button
+                        type="button"
+                        className="transition hover:text-damiun-primary"
+                        style={{ color: brand.muted }}
+                        onClick={onForgotPassword}
+                      >
+                        Forgot my password
+                      </button>
+                    </div>
+                  )}
 
                   <button
                     type="submit"

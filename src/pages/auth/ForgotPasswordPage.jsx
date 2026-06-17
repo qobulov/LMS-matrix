@@ -1,11 +1,10 @@
-import { useCallback, useState, useRef, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Eye, EyeOff } from "lucide-react";
 import { authApi } from "../../api/endpoints";
 import { OtpInput } from "../../components/ui/otp-input";
-import { useLms } from "../../data/LmsContext";
-import { getHomePathForRole } from "../../utils/authRouting";
+import { APP_NAME } from "../../constants/branding";
 
 const OTP_LENGTH = 5;
 const RESEND_COOLDOWN = 60;
@@ -21,16 +20,15 @@ const brand = {
 const inputClass =
   "h-12 w-full rounded-full border border-white/60 bg-[rgba(255,255,255,0.82)] px-5 text-base text-[#3f4960] shadow-[0_1px_0_rgba(255,255,255,0.6)] placeholder:text-[#6a758f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-damiun-primary focus-visible:ring-offset-0 sm:h-12 sm:px-6 sm:text-[0.9375rem]";
 
-export function RegisterPage() {
-  const { applyGatewayAuth } = useLms();
+export function ForgotPasswordPage() {
   const navigate = useNavigate();
-  const [step, setStep] = useState("email"); // "email" | "otp" | "details"
+  const [step, setStep] = useState("email"); // "email" | "otp" | "password"
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
-  const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("student");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
@@ -73,7 +71,9 @@ export function RegisterPage() {
 
       setLoading(true);
       try {
-        await authApi.sendOtp({ recipient: normalizedEmail });
+        await authApi.sendOtp({
+          recipient: normalizedEmail,
+        });
         setEmail(normalizedEmail);
         setStep("otp");
         startResendTimer();
@@ -99,9 +99,12 @@ export function RegisterPage() {
     setError("");
     setLoading(true);
     try {
-      await authApi.verifyOtp({ recipient: email, otp });
-      setStep("details");
-      toast.success("Email tasdiqlandi");
+      await authApi.verifyOtp({
+        recipient: email,
+        otp,
+      });
+      setStep("password");
+      toast.success("Kod tasdiqlandi");
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Kod noto'g'ri";
@@ -116,7 +119,9 @@ export function RegisterPage() {
     if (resendTimer > 0) return;
     setError("");
     try {
-      await authApi.sendOtp({ recipient: email });
+      await authApi.sendOtp({
+        recipient: email,
+      });
       startResendTimer();
       setOtp("");
       toast.success("Yangi kod yuborildi");
@@ -127,46 +132,39 @@ export function RegisterPage() {
     }
   }, [resendTimer, email, startResendTimer]);
 
-  const handleRegister = useCallback(
+  const handleResetPassword = useCallback(
     async (e) => {
       e.preventDefault();
       setError("");
 
-      const trimmedName = fullName.trim();
-      if (!trimmedName) {
-        setError("Ismingizni kiriting");
-        return;
-      }
       if (password.length < 6) {
         setError("Parol kamida 6 ta belgidan iborat bo'lsin");
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError("Parollar mos kelmadi");
         return;
       }
 
       setLoading(true);
       try {
-        const data = await authApi.register({
-          full_name: trimmedName,
-          email,
-          password,
-          role,
+        await authApi.resetPassword({
+          recipient: email,
+          otp,
+          new_password: password,
         });
-        const user = applyGatewayAuth(data, {
-          fullName: trimmedName,
-          email,
-          role,
-        });
-        toast.success(`Welcome, ${user.fullName}!`);
-        navigate(getHomePathForRole(user.role), { replace: true });
+        toast.success("Parol muvaffaqiyatli o'zgartirildi");
+        navigate("/login", { replace: true });
       } catch (err) {
         const message =
-          err instanceof Error ? err.message : "Ro'yxatdan o'tish amalga oshmadi";
+          err instanceof Error ? err.message : "Parolni o'zgartirib bo'lmadi";
         setError(message);
         toast.error(message);
       } finally {
         setLoading(false);
       }
     },
-    [fullName, password, role, email, applyGatewayAuth, navigate],
+    [email, otp, password, confirmPassword, navigate],
   );
 
   return (
@@ -182,7 +180,7 @@ export function RegisterPage() {
             error={error}
             loading={loading}
             onSubmit={handleSendOtp}
-            onLogin={() => navigate("/login")}
+            onBack={() => navigate("/login")}
           />
         )}
 
@@ -204,20 +202,19 @@ export function RegisterPage() {
           />
         )}
 
-        {step === "details" && (
-          <DetailsStep
-            email={email}
-            fullName={fullName}
-            setFullName={setFullName}
+        {step === "password" && (
+          <PasswordStep
             password={password}
             setPassword={setPassword}
+            confirmPassword={confirmPassword}
+            setConfirmPassword={setConfirmPassword}
             showPassword={showPassword}
             setShowPassword={setShowPassword}
-            role={role}
-            setRole={setRole}
+            showConfirm={showConfirm}
+            setShowConfirm={setShowConfirm}
             error={error}
             loading={loading}
-            onSubmit={handleRegister}
+            onSubmit={handleResetPassword}
           />
         )}
       </div>
@@ -225,7 +222,7 @@ export function RegisterPage() {
   );
 }
 
-function EmailStep({ email, setEmail, error, loading, onSubmit, onLogin }) {
+function EmailStep({ email, setEmail, error, loading, onSubmit, onBack }) {
   return (
     <>
       <div className="space-y-2 text-center">
@@ -241,7 +238,7 @@ function EmailStep({ email, setEmail, error, loading, onSubmit, onLogin }) {
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+              d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
             />
           </svg>
         </div>
@@ -249,7 +246,7 @@ function EmailStep({ email, setEmail, error, loading, onSubmit, onLogin }) {
           className="text-2xl font-semibold tracking-tight sm:text-[1.75rem]"
           style={{ color: brand.wordmark }}
         >
-          Ro'yxatdan o'tish
+          Parolni tiklash
         </h1>
         <p
           className="text-sm leading-relaxed sm:text-[0.9375rem]"
@@ -268,13 +265,13 @@ function EmailStep({ email, setEmail, error, loading, onSubmit, onLogin }) {
       <form onSubmit={onSubmit} className="space-y-5">
         <div className="space-y-2.5">
           <label
-            htmlFor="reg-email"
+            htmlFor="reset-email"
             className="text-[0.9375rem] font-semibold leading-tight text-[#1a2235]"
           >
             Email Address
           </label>
           <input
-            id="reg-email"
+            id="reset-email"
             type="email"
             placeholder="Emailingizni kiriting"
             value={email}
@@ -289,20 +286,17 @@ function EmailStep({ email, setEmail, error, loading, onSubmit, onLogin }) {
           disabled={loading}
           className="h-12 w-full rounded-full bg-damiun-primary text-[0.9375rem] font-semibold text-white shadow-sm transition hover:bg-damiun-primary-hover disabled:opacity-70"
         >
-          {loading ? "Yuborilmoqda..." : "Davom etish"}
+          {loading ? "Yuborilmoqda..." : "Kod yuborish"}
         </button>
 
-        <div className="text-center text-sm sm:text-[0.9375rem]" style={{ color: brand.muted }}>
-          Akkauntingiz bormi?{" "}
-          <button
-            type="button"
-            className="font-semibold transition hover:opacity-90"
-            style={{ color: brand.primary }}
-            onClick={onLogin}
-          >
-            Kirish
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onBack}
+          className="w-full text-center text-sm font-medium transition hover:opacity-80"
+          style={{ color: brand.muted }}
+        >
+          &larr; Kirish sahifasiga qaytish
+        </button>
       </form>
     </>
   );
@@ -342,7 +336,7 @@ function OtpStep({
           className="text-2xl font-semibold tracking-tight sm:text-[1.75rem]"
           style={{ color: brand.wordmark }}
         >
-          Emailni tasdiqlang
+          Kodni kiriting
         </h1>
         <p
           className="text-sm leading-relaxed sm:text-[0.9375rem]"
@@ -399,16 +393,15 @@ function OtpStep({
   );
 }
 
-function DetailsStep({
-  email,
-  fullName,
-  setFullName,
+function PasswordStep({
   password,
   setPassword,
+  confirmPassword,
+  setConfirmPassword,
   showPassword,
   setShowPassword,
-  role,
-  setRole,
+  showConfirm,
+  setShowConfirm,
   error,
   loading,
   onSubmit,
@@ -428,7 +421,7 @@ function DetailsStep({
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
             />
           </svg>
         </div>
@@ -436,13 +429,13 @@ function DetailsStep({
           className="text-2xl font-semibold tracking-tight sm:text-[1.75rem]"
           style={{ color: brand.wordmark }}
         >
-          Ma'lumotlarni kiriting
+          Yangi parol
         </h1>
         <p
           className="text-sm leading-relaxed sm:text-[0.9375rem]"
           style={{ color: brand.body }}
         >
-          <span className="font-medium">{email}</span> uchun akkaunt yaratish
+          Yangi parolingizni kiriting
         </p>
       </div>
 
@@ -455,34 +448,16 @@ function DetailsStep({
       <form onSubmit={onSubmit} className="space-y-5">
         <div className="space-y-2.5">
           <label
-            htmlFor="reg-name"
+            htmlFor="new-password"
             className="text-[0.9375rem] font-semibold leading-tight text-[#1a2235]"
           >
-            Full Name
-          </label>
-          <input
-            id="reg-name"
-            type="text"
-            placeholder="Ismingizni kiriting"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className={inputClass}
-            disabled={loading}
-          />
-        </div>
-
-        <div className="space-y-2.5">
-          <label
-            htmlFor="reg-password"
-            className="text-[0.9375rem] font-semibold leading-tight text-[#1a2235]"
-          >
-            Password
+            Yangi parol
           </label>
           <div className="relative">
             <input
-              id="reg-password"
+              id="new-password"
               type={showPassword ? "text" : "password"}
-              placeholder="Parolni kiriting"
+              placeholder="Yangi parolni kiriting"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={`${inputClass} pr-12`}
@@ -499,31 +474,28 @@ function DetailsStep({
         </div>
 
         <div className="space-y-2.5">
-          <label className="text-[0.9375rem] font-semibold leading-tight text-[#1a2235]">
-            Role
+          <label
+            htmlFor="confirm-password"
+            className="text-[0.9375rem] font-semibold leading-tight text-[#1a2235]"
+          >
+            Parolni tasdiqlang
           </label>
-          <div className="flex gap-3">
+          <div className="relative">
+            <input
+              id="confirm-password"
+              type={showConfirm ? "text" : "password"}
+              placeholder="Parolni qayta kiriting"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className={`${inputClass} pr-12`}
+              disabled={loading}
+            />
             <button
               type="button"
-              onClick={() => setRole("student")}
-              className={`flex-1 rounded-full border px-4 py-2.5 text-sm font-medium transition ${
-                role === "student"
-                  ? "border-damiun-primary bg-damiun-primary/10 text-damiun-primary"
-                  : "border-gray-300 text-gray-600 hover:border-gray-400"
-              }`}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-[#6c7388] transition hover:text-[#4e576f]"
+              onClick={() => setShowConfirm((p) => !p)}
             >
-              Student
-            </button>
-            <button
-              type="button"
-              onClick={() => setRole("instructor")}
-              className={`flex-1 rounded-full border px-4 py-2.5 text-sm font-medium transition ${
-                role === "instructor"
-                  ? "border-damiun-primary bg-damiun-primary/10 text-damiun-primary"
-                  : "border-gray-300 text-gray-600 hover:border-gray-400"
-              }`}
-            >
-              Instructor
+              {showConfirm ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
           </div>
         </div>
@@ -533,7 +505,7 @@ function DetailsStep({
           disabled={loading}
           className="h-12 w-full rounded-full bg-damiun-primary text-[0.9375rem] font-semibold text-white shadow-sm transition hover:bg-damiun-primary-hover disabled:opacity-70"
         >
-          {loading ? "Yaratilmoqda..." : "Ro'yxatdan o'tish"}
+          {loading ? "Saqlanmoqda..." : "Parolni o'zgartirish"}
         </button>
       </form>
     </>

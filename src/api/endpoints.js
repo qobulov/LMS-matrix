@@ -5,6 +5,9 @@ export const authApi = {
   register: (payload, options) => callGateway("register", payload, options),
   refresh: (payload, options) => callGateway("refresh_token", payload, options),
   logout: (payload = {}, options) => callGateway("logout", payload, options),
+  sendOtp: (payload, options) => callGateway("send_otp", payload, options),
+  verifyOtp: (payload, options) => callGateway("verify_otp", payload, options),
+  resetPassword: (payload, options) => callGateway("reset_password", payload, options),
 };
 
 export const profileApi = {

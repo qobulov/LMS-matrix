@@ -45,6 +45,7 @@ export function LoginPage() {
       mode="login"
       onSubmit={onSubmit}
       onSwitchMode={() => navigate("/register")}
+      onForgotPassword={() => navigate("/forgot-password")}
     />
   );
 }
