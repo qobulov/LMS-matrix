@@ -90,30 +90,14 @@ export function ForgotPasswordPage() {
     [email, startResendTimer],
   );
 
-  const handleVerifyOtp = useCallback(async () => {
+  const handleVerifyOtp = useCallback(() => {
     if (otp.length !== OTP_LENGTH) {
       setError("Tasdiqlash kodini to'liq kiriting");
       return;
     }
-
     setError("");
-    setLoading(true);
-    try {
-      await authApi.verifyOtp({
-        recipient: email,
-        otp,
-      });
-      setStep("password");
-      toast.success("Kod tasdiqlandi");
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Kod noto'g'ri";
-      setError(message);
-      toast.error(message);
-    } finally {
-      setLoading(false);
-    }
-  }, [otp, email]);
+    setStep("password");
+  }, [otp]);
 
   const handleResendOtp = useCallback(async () => {
     if (resendTimer > 0) return;
