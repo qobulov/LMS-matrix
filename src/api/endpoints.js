@@ -13,7 +13,6 @@ export const authApi = {
 export const profileApi = {
   me: (options) => callGateway("get_user_profile", {}, options),
   update: (payload, options) => callGateway("update_profile", payload, options),
-  getMyRewards: (options) => callGateway("get_my_rewards", {}, options),
   getBalance: (options) => callGateway("get_balance", {}, options),
   topUpBalance: (payload, options) => callGateway("top_up_balance", payload, options),
   getNotifications: (filters = {}, options) => callGateway("get_notifications", filters, options),
@@ -26,6 +25,11 @@ export const homeApi = {
 
 export const fileApi = {
   upload: (file, options) => uploadFile(file, options),
+};
+
+export const instructorApi = {
+  getStudents: (courseId, options) =>
+    callGateway("get_course_students", { courses_id: courseId }, options),
 };
 
 export const courseApi = {

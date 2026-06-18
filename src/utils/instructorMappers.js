@@ -6,6 +6,7 @@ export function mapInstructorCourse(c) {
     title: c.title ?? "",
     status: c.status ?? "draft",
     description: c.description ?? "",
+    coverImage: c.cover_image ?? c.image ?? null,
     studentCount: c.student_count ?? 0,
     modules: (c.modules ?? []).map((m) => ({
       id: String(m.id),

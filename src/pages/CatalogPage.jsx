@@ -64,6 +64,7 @@ export function CatalogPage() {
   const [total, setTotal] = useState(0);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [availableCategories, setAvailableCategories] = useState([]);
 
   const category = useMemo(() => {
     const raw = searchParams.get("category");
@@ -121,6 +122,13 @@ export function CatalogPage() {
     const list = (data.courses ?? []).map(mapCourseListItem).filter(Boolean);
     setCourses(list);
     setTotal(Number(data.total ?? list.length));
+
+    if (category === "all" && !searchQuery.trim() && difficulty === "all") {
+      const cats = [...new Set(list.map((c) => c.category).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b),
+      );
+      setAvailableCategories(cats);
+    }
   }, [getToken, tab, page, sort, searchQuery, category, difficulty]);
 
   useEffect(() => {
@@ -152,11 +160,11 @@ export function CatalogPage() {
   }, [fetchData, searchQuery]);
 
   const categories = useMemo(() => {
-    const set = new Set(["all", ...courses.map((c) => c.category).filter(Boolean)]);
+    const set = new Set(availableCategories);
     if (category !== "all") set.add(category);
-    const rest = Array.from(set).filter((c) => c !== "all").sort((a, b) => a.localeCompare(b));
+    const rest = Array.from(set).sort((a, b) => a.localeCompare(b));
     return ["all", ...rest];
-  }, [courses, category]);
+  }, [availableCategories, category]);
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);

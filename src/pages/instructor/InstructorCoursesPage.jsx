@@ -49,23 +49,38 @@ function CoursePicker({ courses, loading }) {
         <Link
           key={course.id}
           to={`/instructor/courses/${course.id}`}
-          className="group rounded-2xl border border-gray-100 bg-white p-5 shadow-sm ring-1 ring-gray-50 transition hover:border-damiun-primary/30 hover:shadow-md"
+          className="group overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm ring-1 ring-gray-50 transition hover:border-damiun-primary/30 hover:shadow-md"
         >
-          <p className="font-semibold text-damiun-wordmark group-hover:text-damiun-primary">
-            {course.title}
-          </p>
-          <span
-            className={`mt-2 inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${
-              course.status === "published"
-                ? "bg-emerald-50 text-emerald-700"
-                : "bg-amber-50 text-amber-700"
-            }`}
-          >
-            {course.status}
-          </span>
-          <p className="mt-3 text-xs text-damiun-muted">
-            {course.modules.length} modul · {course.studentCount} talaba
-          </p>
+          {course.coverImage ? (
+            <div className="aspect-[16/7] w-full overflow-hidden bg-gray-100">
+              <img
+                src={course.coverImage}
+                alt={course.title}
+                className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+              />
+            </div>
+          ) : (
+            <div className="aspect-[16/7] w-full bg-gradient-to-br from-damiun-primary/10 to-damiun-primary/5 flex items-center justify-center">
+              <BookOpen className="h-8 w-8 text-damiun-primary/30" />
+            </div>
+          )}
+          <div className="p-5">
+            <p className="font-semibold text-damiun-wordmark group-hover:text-damiun-primary">
+              {course.title}
+            </p>
+            <span
+              className={`mt-2 inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${
+                course.status === "published"
+                  ? "bg-emerald-50 text-emerald-700"
+                  : "bg-amber-50 text-amber-700"
+              }`}
+            >
+              {course.status}
+            </span>
+            <p className="mt-3 text-xs text-damiun-muted">
+              {course.modules.length} modul · {course.studentCount} talaba
+            </p>
+          </div>
         </Link>
       ))}
     </div>

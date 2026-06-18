@@ -4,7 +4,6 @@ import {
   Award,
   BookOpen,
   Briefcase,
-  Gift,
   LayoutDashboard,
   Mail,
   PenSquare,
@@ -347,10 +346,6 @@ export function ProfilePage() {
                     <Link to="/certificates" className={shortcutBtn}>
                       <Award className="h-4 w-4 text-damiun-primary" />
                       Certificates
-                    </Link>
-                    <Link to="/rewards" className={shortcutBtn}>
-                      <Gift className="h-4 w-4 text-damiun-primary" />
-                      Rewards
                     </Link>
                   </>
                 )}

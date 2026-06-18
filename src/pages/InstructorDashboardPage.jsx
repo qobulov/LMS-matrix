@@ -1,11 +1,124 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowRight, BookOpen, Layers, PlusCircle, Users } from "lucide-react";
+import { ArrowRight, BookOpen, Layers, PlusCircle, Users, X } from "lucide-react";
 import { Link } from "react-router-dom";
-import { courseApi, profileApi } from "../api/endpoints";
+import { courseApi, instructorApi, profileApi } from "../api/endpoints";
 import { StatCard } from "../components/ui/StatCard";
 import { useLms } from "../data/LmsContext";
 import { mapInstructorCourse } from "../utils/instructorMappers";
 import { formatPrice } from "../utils/format";
+
+function StudentsModal({ course, onClose, getToken }) {
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    setLoading(true);
+    instructorApi
+      .getStudents(course.id, { token })
+      .then((data) => setStudents(data.students ?? []))
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [course.id, getToken]);
+
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="flex w-full max-w-2xl flex-col rounded-2xl bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+          <div>
+            <h2 className="text-base font-bold text-damiun-wordmark">Students</h2>
+            <p className="mt-0.5 text-sm text-damiun-muted line-clamp-1">{course.title}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="max-h-[60vh] overflow-y-auto px-6 py-4">
+          {loading ? (
+            <p className="py-8 text-center text-sm text-damiun-muted">Loading…</p>
+          ) : error ? (
+            <p className="py-8 text-center text-sm text-red-500">{error}</p>
+          ) : students.length === 0 ? (
+            <p className="py-8 text-center text-sm text-damiun-muted">No students enrolled yet.</p>
+          ) : (
+            <table className="data-table w-full">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Status</th>
+                  <th>Progress</th>
+                  <th>Enrolled</th>
+                </tr>
+              </thead>
+              <tbody>
+                {students.map((s) => (
+                  <tr key={s.enrollment_id ?? s.student_id}>
+                    <td>
+                      <div className="flex items-center gap-2.5">
+                        {s.avatar_url ? (
+                          <img src={s.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover" />
+                        ) : (
+                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-damiun-primary text-xs font-bold text-white">
+                            {(s.full_name ?? s.email ?? "?")[0].toUpperCase()}
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-sm font-semibold text-damiun-wordmark">{s.full_name || "—"}</p>
+                          <p className="text-xs text-damiun-muted">{s.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="rounded-full bg-damiun-nav-tint px-2 py-0.5 text-xs font-semibold capitalize text-damiun-primary">
+                        {s.status ?? "active"}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 w-20 overflow-hidden rounded-full bg-gray-100">
+                          <div
+                            className="h-full rounded-full bg-damiun-primary"
+                            style={{ width: `${s.progress_percent ?? 0}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-damiun-muted">{s.progress_percent ?? 0}%</span>
+                      </div>
+                    </td>
+                    <td className="text-xs text-damiun-muted">
+                      {s.enrolled_at ? new Date(s.enrolled_at).toLocaleDateString() : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <div className="border-t border-gray-100 px-6 py-3 text-right">
+          <span className="text-xs text-damiun-muted">{students.length} student{students.length !== 1 ? "s" : ""}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function InstructorDashboardPage() {
   const { getToken, currentUser } = useLms();
@@ -14,6 +127,7 @@ export function InstructorDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [balance, setBalance] = useState(null);
+  const [selectedCourse, setSelectedCourse] = useState(null);
 
   const load = useCallback(async () => {
     const token = getToken();
@@ -78,6 +192,14 @@ export function InstructorDashboardPage() {
   }
 
   return (
+    <>
+    {selectedCourse && (
+      <StudentsModal
+        course={selectedCourse}
+        onClose={() => setSelectedCourse(null)}
+        getToken={getToken}
+      />
+    )}
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -170,10 +292,18 @@ export function InstructorDashboardPage() {
                       </span>
                     </td>
                     <td>
-                      <span className="inline-flex items-center gap-1 text-sm text-damiun-body">
+                      <button
+                        type="button"
+                        onClick={() => course.studentCount > 0 && setSelectedCourse(course)}
+                        className={`inline-flex items-center gap-1 text-sm transition ${
+                          course.studentCount > 0
+                            ? "cursor-pointer font-semibold text-damiun-primary hover:underline"
+                            : "cursor-default text-damiun-body"
+                        }`}
+                      >
                         <Users className="h-3.5 w-3.5 text-damiun-muted" aria-hidden />
                         {course.studentCount}
-                      </span>
+                      </button>
                     </td>
                     <td className="text-sm text-damiun-body">{course.modules.length}</td>
                     <td>
@@ -206,5 +336,6 @@ export function InstructorDashboardPage() {
         )}
       </section>
     </div>
+    </>
   );
 }
