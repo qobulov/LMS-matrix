@@ -96,6 +96,10 @@ export const adminApi = {
     callGateway("create_instructor_payout", payload, options),
   getTransactions: (filters = {}, options) =>
     callGateway("get_transactions", filters, options),
+  updateInstructorSalary: (payload, options) =>
+    callGateway("update_instructor_salary", payload, options),
+  assignRole: (payload, options) =>
+    callGateway("assign_role", payload, options),
 };
 
 export const certificateApi = {

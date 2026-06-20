@@ -51,15 +51,22 @@ function unwrapInvokeFunctionData(envelope) {
   return envelope;
 }
 
+const GO_INTERNAL_ERROR_PREFIXES = ["json:", "reflect:", "runtime error:", "strconv.", "sql:"];
+
+function isGoInternalError(msg) {
+  if (typeof msg !== "string") return false;
+  return GO_INTERNAL_ERROR_PREFIXES.some((prefix) => msg.startsWith(prefix));
+}
+
 function extractErrorMessage(payload, status) {
   const errBlock = payload?.data;
-  return (
+  const msg =
     errBlock?.message ||
     errBlock?.data?.message ||
     errBlock?.error ||
     payload?.error ||
-    `Gateway error: ${status}`
-  );
+    `Gateway error: ${status}`;
+  return isGoInternalError(msg) ? "Kutilmagan xatolik yuz berdi" : msg;
 }
 
 function isUnauthorized(status) {

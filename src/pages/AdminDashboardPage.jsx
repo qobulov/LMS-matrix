@@ -7,11 +7,25 @@ const PERIODS = [
   { id: "day", label: "Day" },
   { id: "week", label: "Week" },
   { id: "month", label: "Month" },
+  { id: "custom", label: "Custom" },
 ];
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function monthAgoStr() {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 1);
+  return d.toISOString().slice(0, 10);
+}
 
 export function AdminDashboardPage() {
   const { getToken } = useLms();
   const [period, setPeriod] = useState("month");
+  const [dateFrom, setDateFrom] = useState(monthAgoStr);
+  const [dateTo, setDateTo] = useState(todayStr);
+  const [appliedRange, setAppliedRange] = useState(null);
   const [finance, setFinance] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -19,8 +33,12 @@ export function AdminDashboardPage() {
   const load = useCallback(async () => {
     const token = getToken();
     if (!token) throw new Error("Not signed in");
-    return adminApi.getFinanceSummary({ preset: period }, { token });
-  }, [getToken, period]);
+    const filters =
+      period === "custom" && appliedRange
+        ? { period_start: appliedRange.from, period_end: appliedRange.to }
+        : { preset: period };
+    return adminApi.getFinanceSummary(filters, { token });
+  }, [getToken, period, appliedRange]);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,6 +98,45 @@ export function AdminDashboardPage() {
         ))}
         {loading ? <span className="text-xs text-damiun-muted">Updating…</span> : null}
       </div>
+
+      {period === "custom" && (
+        <form
+          className="flex flex-wrap items-end gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (dateFrom && dateTo) setAppliedRange({ from: dateFrom, to: dateTo });
+          }}
+        >
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold uppercase tracking-wide text-damiun-muted">From</label>
+            <input
+              type="date"
+              value={dateFrom}
+              max={dateTo || todayStr()}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-damiun-primary"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold uppercase tracking-wide text-damiun-muted">To</label>
+            <input
+              type="date"
+              value={dateTo}
+              min={dateFrom}
+              max={todayStr()}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-damiun-primary"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={!dateFrom || !dateTo || loading}
+            className="rounded-full bg-damiun-primary px-4 py-2 text-sm font-semibold text-white shadow-sm disabled:opacity-50"
+          >
+            Apply
+          </button>
+        </form>
+      )}
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
